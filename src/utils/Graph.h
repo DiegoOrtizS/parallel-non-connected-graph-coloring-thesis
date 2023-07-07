@@ -1,13 +1,24 @@
-#pragma once
+#ifndef GRAPH_H
+#define GRAPH_H
+
+#include <mpi.h>
 
 class Graph
 {
     protected:
         int n;
-        int m;
         int **graph;
     
     public:
-        Graph(int n, int m);
+        Graph();
+        Graph(int n);
+        Graph(int n, int **graph);
         ~Graph();
+        void setN(int n);
+        int getN();
+        void setGraph(int **graph);
+        int** getGraph();
+        void coloringMPI(int processId, int (*coloringAlgorithm)(int, int**));
 };
+
+#endif // GRAPH_H

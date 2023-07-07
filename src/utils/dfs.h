@@ -1,4 +1,5 @@
-#pragma once
+#ifndef DFS_H
+#define DFS_H
 
 void DFS(int** graph, int &n, int &vertex, bool* visited, int& componentSize, int& componentEdges) {
     visited[vertex] = true;
@@ -11,3 +12,5 @@ void DFS(int** graph, int &n, int &vertex, bool* visited, int& componentSize, in
         }
     }
 }
+
+#endif // DFS_H

@@ -4,23 +4,32 @@
 #include <random>
 #include <cmath>
 #include <stdexcept>
+#include <iostream>
 
-GraphGenerator::GraphGenerator(int n, int m, int nPrime, float maxDensity, int seed) : Graph(n, m)
-{
+GraphGenerator::GraphGenerator() : Graph() {
+    colorIndex = new int[n];
+}
+
+GraphGenerator::GraphGenerator(int n) : Graph (n) {
+    colorIndex = new int[n];
+}
+
+GraphGenerator::GraphGenerator(int n, int **graph) : Graph (n, graph) {
+    colorIndex = new int[n];
+}
+
+GraphGenerator::~GraphGenerator() {}
+
+void GraphGenerator::setColorIndex(int *colorIndex) {
+    this->colorIndex = colorIndex;
+}
+
+void GraphGenerator::generateGraph(int m, int nPrime, float maxDensity, int seed) {
+    this->m = m;
     this->nPrime = nPrime;
     this->maxDensity = maxDensity;
     this->seed = seed;
-}
 
-GraphGenerator::~GraphGenerator()
-{
-    for (int i = 0; i < n; ++i) {
-        delete[] graph[i];
-    }
-    delete[] graph;
-}
-
-void GraphGenerator::generateGraph() {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<float> dist(0.0, 1.0);
 
@@ -56,7 +65,6 @@ void GraphGenerator::generateGraph() {
 
 void GraphGenerator::drawGraph() {
     glClear(GL_COLOR_BUFFER_BIT);
-    glColor3f(1.0, 1.0, 1.0);
 
     const float radius = 0.1;
 
@@ -69,6 +77,9 @@ void GraphGenerator::drawGraph() {
     }
 
     for (int i = 0; i < n; ++i) {
+        auto color = colors[colorIndex[i]];
+        glColor3f(color[0], color[1], color[2]);
+
         glPushMatrix();
         glTranslatef(precalcXpos[i], precalcYpos[i], 0.0);
 
@@ -119,7 +130,7 @@ bool GraphGenerator::validateGraph() {
         }
     }
     if (edgeCount != m) {
-        throw std::length_error("Error: Number of edges (m) does not match the actual number of edges in the graph.");
+        throw std::length_error("Error: Number of edges " + std::to_string(m) + " does not match the actual number of " + std::to_string(edgeCount) + " edges in the graph.");
         return false;
     }
 
@@ -139,7 +150,7 @@ bool GraphGenerator::validateGraph() {
 
             float density = (2.0 * componentEdges) / (componentSize * (componentSize - 1));
             if (density > maxDensity) {
-                throw std::length_error("Error: Density of a connected component is greater than the maximum density.");
+                throw std::length_error("Error: Density of component " + std::to_string(connectedComponents) + " is " + std::to_string(density) + " which is greater than the maximum density of " + std::to_string(maxDensity) + ".");
                 delete[] visited;
                 return false;
             }
@@ -147,7 +158,7 @@ bool GraphGenerator::validateGraph() {
     }
 
     if (connectedComponents != nPrime) {
-        throw std::length_error("Error: Number of connected components does not match the actual number of connected components in the graph.");
+        throw std::length_error("Error: Number of connected components " + std::to_string(nPrime) + " does not match the actual number of " + std::to_string(connectedComponents) + " connected components in the graph.");
         return false;
     }
 
