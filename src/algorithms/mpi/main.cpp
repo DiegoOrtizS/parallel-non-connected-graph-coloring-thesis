@@ -30,11 +30,9 @@ int coloringMPI(const int &processId, const int &n, int **graph, int (*coloringA
             }
 
             MPI_Isend(&submatrixSize, 1, MPI_INT, nextProcessId, 0, MPI_COMM_WORLD, &request);
-            MPI_Wait(&request, &status);
 
             for (int i = 0; i < submatrixSize; i++) {
                 MPI_Isend(submatrix[i], submatrixSize, MPI_INT, nextProcessId, 0, MPI_COMM_WORLD, &request);
-                MPI_Wait(&request, &status);
             }
             
             nextProcessId++;
@@ -65,8 +63,16 @@ int coloringMPI(const int &processId, const int &n, int **graph, int (*coloringA
 
         for (int i = 0; i < submatrixSize; i++) {
             MPI_Irecv(submatrix[i], submatrixSize, MPI_INT, 0, 0, MPI_COMM_WORLD, &request);
-            MPI_Wait(&request, &status);
         }
+
+        // print submatrix
+        // for (int i = 0; i < submatrixSize; i++) {
+        //     for (int j = 0; j < submatrixSize; j++) {
+        //         cout << submatrix[i][j] << " ";
+        //     }
+        //     cout << endl;
+        // }
+        // cout << endl;
 
         chromaticNumber = coloringAlgorithm(submatrixSize, submatrix);
     }
@@ -89,6 +95,7 @@ int main(int argc, char** argv) {
         // graphGenerator->setN(1e4);
         // graphGenerator->generateGraph(6245000, 8);
         graphGenerator->loadGraph("10000 6245000 8");
+        // graphGenerator->loadGraph("9 7 3");
         graphGenerator->validateGraph();
     }
     
