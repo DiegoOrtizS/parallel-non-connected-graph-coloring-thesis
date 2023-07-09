@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -std=c++11 -Wall -Wextra -fopenmp
 LDFLAGS = -lGL -lGLU -lglut
-UTILS_DIR = ../../utils
+UTILS_DIR = ../../utils/graphs
 GENERATOR_DIR = ../../generator
 
 all: a.out

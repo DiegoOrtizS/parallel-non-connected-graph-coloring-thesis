@@ -1,3 +1,6 @@
+#ifndef IS_WELL_COLORED_H
+#define IS_WELL_COLORED_H
+
 #include <stdexcept>
 #include <iostream>
 
@@ -22,3 +25,5 @@ bool isWellColored(int* colors, int** adjacencyMatrix, int numVertices) {
     std::cout << "The graph is well colored." << std::endl;
     return true; // The graph is well colored
 }
+
+# endif // IS_WELL_COLORED_H

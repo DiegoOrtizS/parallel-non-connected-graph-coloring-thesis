@@ -1,8 +1,10 @@
 #include <GL/glut.h>
+#include <vector>
+#include <array>
 
-#include "../utils/Graph.h"
+#include "../utils/graphs/Graph.h"
 
-class GraphGenerator : public Graph
+class GraphGenerator : public mesquo::Graph
 {
     private:
         static GraphGenerator* currentInstance;
@@ -10,20 +12,9 @@ class GraphGenerator : public Graph
         int nPrime;
         float maxDensity;
         int seed;
-        float colors[10][3] = {
-            {1.0, 1.0, 1.0}, // white
-            {1.0, 0.0, 0.0}, // red
-            {0.0, 1.0, 0.0}, // green
-            {0.0, 0.0, 1.0}, // blue
-            {1.0, 1.0, 0.0}, // yellow
-            {1.0, 0.0, 1.0}, // magenta
-            {0.0, 1.0, 1.0}, // cyan
-            {1.0, 0.5, 0.0}, // orange
-            {0.5, 0.0, 1.0}, // purple
-            {0.0, 0.5, 1.0}  // light blue
-        };
+        std::vector<std::array<float, 3>> colors;
         int *colorIndex;
-        
+        int chromaticNumber;
         
         static void staticDrawGraph() {
             currentInstance->drawGraph();
@@ -39,7 +30,8 @@ class GraphGenerator : public Graph
         GraphGenerator(int n, int **graph);
         ~GraphGenerator();
         void setColorIndex(int *colorIndex);
-        void generateGraph(int m, int nPrime, float maxDensity, int seed);
+        void setChromaticNumber(int chromaticNumber);
+        void generateGraph(int m, int nPrime);
         void drawGraph();
         bool validateGraph();
 };

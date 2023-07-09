@@ -1,6 +1,6 @@
 #include <iostream>
 #include "GraphGenerator.h"
-#include "../utils/glutInitialize.h"
+#include "../utils/functions/glutInitialize.h"
 #include <stdexcept>
 
 int main(int argc, char** argv) {

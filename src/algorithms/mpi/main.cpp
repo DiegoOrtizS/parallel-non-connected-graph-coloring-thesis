@@ -1,32 +1,93 @@
 #include <iostream>
 #include <mpi.h>
 #include "../../generator/GraphGenerator.h"
-#include "../../utils/glutInitialize.h"
-#include "../../utils/isWellColored.h"
+#include "../../utils/functions/glutInitialize.h"
+#include "../../utils/functions/isWellColored.h"
+#include "../../algorithms/mpi/connectedComponents.h"
 #include "coloringAlgorithms.h"
 
 using namespace std;
 
-int main(int argc, char** argv) {
+int coloringMPI(const int &processId, const int &n, int **graph, int (*coloringAlgorithm)(int, int**)) {
+    int chromaticNumber;
+    if (processId == 0) {
+        auto components = dsu(n, graph);
+        
+        int nextProcessId = 1;
+
+        for (int component = 1; component < components.size(); component++) {
+            auto c = components[component];
+            int submatrixSize = c.size();
+            int **submatrix = new int*[submatrixSize];
+            for (int i = 0; i < submatrixSize; i++) {
+                submatrix[i] = new int[submatrixSize];
+                for (int j = 0; j < submatrixSize; j++) {
+                    submatrix[i][j] = graph[c[i]][c[j]];
+                }
+            }
+
+            MPI_Send(&submatrixSize, 1, MPI_INT, nextProcessId, 0, MPI_COMM_WORLD);
+            for (int i = 0; i < submatrixSize; i++) {
+                MPI_Send(submatrix[i], submatrixSize, MPI_INT, nextProcessId, 0, MPI_COMM_WORLD);
+            }
+            
+            nextProcessId++;
+        }
+
+        auto c = components[0];
+        int submatrixSize = c.size();
+        int **submatrix = new int*[submatrixSize];
+        for (int i = 0; i < submatrixSize; i++) {
+                submatrix[i] = new int[submatrixSize];
+                for (int j = 0; j < submatrixSize; j++) {
+                    submatrix[i][j] = graph[c[i]][c[j]];
+                }
+            }
+
+        chromaticNumber = coloringAlgorithm(components[0].size(), submatrix);
+    }
+    else {
+        int submatrixSize;
+        MPI_Recv(&submatrixSize, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        // allocate memory for the submatrix
+        int** submatrix = new int*[submatrixSize];
+        for (int i = 0; i < submatrixSize; i++) {
+            submatrix[i] = new int[submatrixSize];
+        }
+
+        for (int i = 0; i < submatrixSize; i++) {
+            MPI_Recv(submatrix[i], submatrixSize, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+
+        chromaticNumber = coloringAlgorithm(submatrixSize, submatrix);
+    }
+
+    // MPI REDUCE of the chromatic number
+    int maxChromaticNumber;
+    MPI_Reduce(&chromaticNumber, &maxChromaticNumber, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    return maxChromaticNumber;
+}
+
+int main(int argc, char** argv) {    
     int processId;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
 
-    GraphGenerator graph;
+    GraphGenerator *graphGenerator = new GraphGenerator();
 
     if (processId == 0) {
-        int numVertices = 1e4;
-        graph.setN(numVertices);
-        graph.generateGraph(6245000, 8, 1, 42);
-        auto adjMatrix = graph.getGraph();
-        graph.validateGraph();
+        graphGenerator->setN(1e4);
+        graphGenerator->generateGraph(6245000, 8);
+        graphGenerator->validateGraph();
     }
     
-    // measure time
     auto start = MPI_Wtime();
-    graph.coloringMPI(processId, largestDegreeFirst);
+    int chromaticNumber = coloringMPI(processId, graphGenerator->getN(), graphGenerator->getGraph(), largestDegreeFirst);
     auto stop = MPI_Wtime();
     if (processId == 0) {
+        std::cout << "Graph chromatic number is " << chromaticNumber << std::endl;
         cout << "Time taken by MPI coloring: " << stop - start << " seconds" << endl;
     }
     MPI_Finalize();

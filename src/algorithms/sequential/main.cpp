@@ -1,6 +1,6 @@
 #include <chrono>
 #include <set>
-#include "../../utils/isWellColored.h"
+#include "../../utils/functions/isWellColored.h"
 #include "../../generator/GraphGenerator.h"
 
 using namespace std::chrono;

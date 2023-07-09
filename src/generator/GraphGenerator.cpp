@@ -1,13 +1,27 @@
 #include "GraphGenerator.h"
-#include "../utils/dfs.h"
+#include "../utils/functions/dfs.h"
+#include "../utils/functions/distributeIntegers.h"
+#include "../utils/functions/adjacencyListToMatrix.h"
+#include "../utils/functions/combineComponentsToAdjacencyMatrix.h"
 #include <GL/glut.h>
-#include <random>
 #include <cmath>
 #include <stdexcept>
 #include <iostream>
+#include <random>
 
 GraphGenerator::GraphGenerator() : Graph() {
     colorIndex = new int[n];
+    // Intialize colors with some values
+    colors.push_back({1.0f, 1.0f, 1.0f});
+    colors.push_back({1.0f, 0.0f, 0.0f});
+    colors.push_back({0.0f, 1.0f, 0.0f});
+    colors.push_back({0.0f, 0.0f, 1.0f});
+    colors.push_back({1.0f, 1.0f, 0.0f});
+    colors.push_back({1.0f, 0.0f, 1.0f});
+    colors.push_back({0.0f, 1.0f, 1.0f});
+    colors.push_back({1.0f, 0.5f, 0.0f});
+    colors.push_back({0.5f, 0.0f, 1.0f});
+    colors.push_back({0.0f, 0.5f, 1.0f});
 }
 
 GraphGenerator::GraphGenerator(int n) : Graph (n) {
@@ -24,47 +38,33 @@ void GraphGenerator::setColorIndex(int *colorIndex) {
     this->colorIndex = colorIndex;
 }
 
-void GraphGenerator::generateGraph(int m, int nPrime, float maxDensity, int seed) {
+void GraphGenerator::setChromaticNumber(int chromaticNumber) {
+    this->chromaticNumber = chromaticNumber;
+}
+
+void GraphGenerator::generateGraph(int m, int nPrime) {
     this->m = m;
     this->nPrime = nPrime;
-    this->maxDensity = maxDensity;
-    this->seed = seed;
-
-    std::mt19937 rng(seed);
-    std::uniform_real_distribution<float> dist(0.0, 1.0);
-
-    int verticesPerComponent = n / nPrime;
-    int extraVertices = n % nPrime;
-
-    int currentVertex = 0;
-    int mAux = m;
+    std::vector<int> verticesPerComponent = distributeIntegers(n, nPrime);
+    std::vector<int> edgesPerComponent = distributeIntegers(m, nPrime);
+    std::vector<int**> components;
     for (int i = 0; i < nPrime; ++i) {
-        int componentSize = verticesPerComponent + (i < extraVertices ? 1 : 0);
-
-        for (int u = currentVertex; u < currentVertex + componentSize; ++u) {
-            for (int v = u + 1; v < currentVertex + componentSize; ++v) {
-                if (dist(rng) < maxDensity) {
-                    graph[u][v] = graph[v][u] = 1;
-                    --mAux;
-                }
-            }
-        }
-
-        currentVertex += componentSize;
+        jngen::Graph component = jngen::Graph::random(verticesPerComponent[i], edgesPerComponent[i]).connected();
+        components.push_back(adjacencyListToMatrix(component));
     }
-
-    while (mAux > 0) {
-        int u = rng() % n;
-        int v = rng() % n;
-        if (u != v && graph[u][v] == 0) {
-            graph[u][v] = graph[v][u] = 1;
-            --mAux;
-        }
-    }
+    combineComponentsToAdjacencyMatrix(components, verticesPerComponent, graph);
 }
 
 void GraphGenerator::drawGraph() {
     glClear(GL_COLOR_BUFFER_BIT);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0.0, 1.0);
+
+    for (int i = colors.size(); i < chromaticNumber; ++i) {
+        colors.push_back({dis(gen), dis(gen), dis(gen)});
+    }
 
     const float radius = 0.1;
 
@@ -147,13 +147,6 @@ bool GraphGenerator::validateGraph() {
 
             DFS(graph, n, i, visited, componentSize, componentEdges);
             ++connectedComponents;
-
-            float density = (2.0 * componentEdges) / (componentSize * (componentSize - 1));
-            if (density > maxDensity) {
-                throw std::length_error("Error: Density of component " + std::to_string(connectedComponents) + " is " + std::to_string(density) + " which is greater than the maximum density of " + std::to_string(maxDensity) + ".");
-                delete[] visited;
-                return false;
-            }
         }
     }
 
