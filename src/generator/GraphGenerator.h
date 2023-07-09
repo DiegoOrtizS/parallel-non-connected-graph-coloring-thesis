@@ -16,6 +16,7 @@ class GraphGenerator : public mesquo::Graph
         int *colorIndex;
         int chromaticNumber;
         
+        void intializeColors();
         static void staticDrawGraph() {
             currentInstance->drawGraph();
         }
@@ -34,4 +35,6 @@ class GraphGenerator : public mesquo::Graph
         void generateGraph(int m, int nPrime);
         void drawGraph();
         bool validateGraph();
+        void saveGraph(std::string dir = "../../data");
+        void loadGraph(std::string name, std::string dir = "../../data");
 };

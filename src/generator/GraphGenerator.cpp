@@ -9,9 +9,9 @@
 #include <iostream>
 #include <random>
 
-GraphGenerator::GraphGenerator() : Graph() {
-    colorIndex = new int[n];
-    // Intialize colors with some values
+
+void GraphGenerator::intializeColors() {
+    colors.clear();
     colors.push_back({1.0f, 1.0f, 1.0f});
     colors.push_back({1.0f, 0.0f, 0.0f});
     colors.push_back({0.0f, 1.0f, 0.0f});
@@ -24,12 +24,19 @@ GraphGenerator::GraphGenerator() : Graph() {
     colors.push_back({0.0f, 0.5f, 1.0f});
 }
 
+GraphGenerator::GraphGenerator() : Graph() {
+    colorIndex = new int[n];
+    intializeColors();
+}
+
 GraphGenerator::GraphGenerator(int n) : Graph (n) {
     colorIndex = new int[n];
+    intializeColors();
 }
 
 GraphGenerator::GraphGenerator(int n, int **graph) : Graph (n, graph) {
     colorIndex = new int[n];
+    intializeColors();
 }
 
 GraphGenerator::~GraphGenerator() {}
@@ -157,6 +164,46 @@ bool GraphGenerator::validateGraph() {
 
     delete[] visited;
 
-
     return true;
+}
+
+void GraphGenerator::saveGraph(std::string dir) {
+    std::ofstream file;
+    std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
+    file.open(dir + "/" + name + ".txt");
+    file << name << std::endl;
+    for (int i = 0; i < n; ++i) {
+        file << graph[i][0];
+        for (int j = 1; j < n; ++j) {
+            file << " " << graph[i][j];
+        }
+        file << std::endl;
+    }
+    file.close();
+}
+
+void GraphGenerator::loadGraph(std::string name, std::string dir) {
+    std::ifstream file;
+    file.open(dir + "/" + name + ".txt");
+    if (!file.is_open()) {
+        throw std::invalid_argument("Error: File " + name + ".txt does not exist.");
+    }
+    std::string line;
+    std::getline(file, line);
+    std::istringstream iss(line);
+    iss >> n >> m >> nPrime;
+    graph = new int*[n];
+    for (int i = 0; i < n; ++i) {
+        graph[i] = new int[n];
+    }
+    int i = 0;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        int j = 0;
+        while (iss >> graph[i][j]) {
+            ++j;
+        }
+        ++i;
+    }
+    file.close();
 }
