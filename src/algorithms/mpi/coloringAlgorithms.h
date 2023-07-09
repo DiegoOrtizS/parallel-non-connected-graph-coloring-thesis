@@ -6,7 +6,7 @@
 
 using namespace std;
 
-int largestDegreeFirst(int submatrixSize, int** submatrix)
+std::pair<int*, int> largestDegreeFirst(int submatrixSize, int** submatrix)
 {
     int* colors = new int[submatrixSize];
     for (int i = 0; i < submatrixSize; i++) {
@@ -46,7 +46,7 @@ int largestDegreeFirst(int submatrixSize, int** submatrix)
         chromaticNumber = max(chromaticNumber, color + 1);
     }
 
-    return chromaticNumber;
+    return std::make_pair(colors, chromaticNumber);
 }
 
 // int smallestDegreeLast(int submatrixSize, int** submatrix)
