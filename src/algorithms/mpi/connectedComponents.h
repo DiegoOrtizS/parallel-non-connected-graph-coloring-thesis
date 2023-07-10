@@ -1,3 +1,6 @@
+#ifndef CONNECTED_COMPONENTS_H
+#define CONNECTED_COMPONENTS_H
+
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
@@ -55,3 +58,5 @@ vector<vector<int>> dsu(int matrixSize, int** matrix) {
 
     return components;
 }
+
+#endif // CONNECTED_COMPONENTS_H

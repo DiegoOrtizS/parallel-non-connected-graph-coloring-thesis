@@ -16,20 +16,24 @@ int main(int argc, char** argv) {
     if (processId == 0) {
         // graphGenerator->setN(1e4);
         // graphGenerator->generateGraph(6245000, 8);
-        graphGenerator->loadGraph("10000 6245000 8");
-        // graphGenerator->loadGraph("9 7 3");
+        // graphGenerator->loadGraph("10000 6245000 8");
+        graphGenerator->loadGraph("9 7 3");
         graphGenerator->validateGraph();
     }
     
     auto start = MPI_Wtime();
-    std::pair<int*, int> result = coloringMPI(processId, graphGenerator->getN(), graphGenerator->getGraph(), largestDegreeFirst);
+    ColoringResult result = coloringMPI(processId, graphGenerator->getN(), graphGenerator->getGraph(), largestDegreeFirst);
     auto stop = MPI_Wtime();
-    int *colors = result.first;
-    int chromaticNumber = result.second;
     if (processId == 0) {
-        isWellColored(colors, graphGenerator->getGraph(), graphGenerator->getN());
-        std::cout << "Graph chromatic number is " << chromaticNumber << std::endl;
-        std::cout << "Time taken by MPI coloring: " << stop - start << " seconds" << std::endl;
+        isWellColored(result.colors, graphGenerator->getGraph(), graphGenerator->getN(), result.labels);
+        std::cout << "Chromatic number:  " << result.chromaticNumber << std::endl;
+        std::cout << "Total Time: " << stop - start << " seconds" << std::endl;
+
+        glutInitialize(argc, argv);
+        graphGenerator->setColorIndex(result.colors, result.labels);
+        graphGenerator->setChromaticNumber(result.chromaticNumber);
+        graphGenerator->drawGraph();
+        glutMainLoop();
     }
     MPI_Finalize();
     return 0;

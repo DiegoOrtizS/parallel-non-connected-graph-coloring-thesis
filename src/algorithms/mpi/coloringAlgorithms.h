@@ -3,16 +3,12 @@
 
 #include <vector>
 #include <algorithm>
+#include "../../utils/structs/ColoringResult.h"
 
-using namespace std;
-
-std::pair<int*, int> largestDegreeFirst(int submatrixSize, int** submatrix)
+ColoringResult largestDegreeFirst(int submatrixSize, int** submatrix)
 {
     int* colors = new int[submatrixSize];
-    for (int i = 0; i < submatrixSize; i++) {
-        colors[i] = -1;
-    }
-    vector<pair<int, int>> degrees;
+    std::vector<std::pair<int, int>> degrees;
     for (int i = 0; i < submatrixSize; i++) {
         int degree = 0;
         for (int j = 0; j < submatrixSize; j++) {
@@ -28,7 +24,7 @@ std::pair<int*, int> largestDegreeFirst(int submatrixSize, int** submatrix)
     int chromaticNumber = 0;
     for (int i = 0; i < submatrixSize; i++) {
         int node = degrees[i].second;
-        int color = 0;
+        int color = 1;
         while (true) {
             bool ok = true;
             for (int j = 0; j < submatrixSize; j++) {
@@ -43,10 +39,10 @@ std::pair<int*, int> largestDegreeFirst(int submatrixSize, int** submatrix)
             color++;
         }
         colors[node] = color;
-        chromaticNumber = max(chromaticNumber, color + 1);
+        chromaticNumber = max(chromaticNumber, color);
     }
 
-    return std::make_pair(colors, chromaticNumber);
+    return ColoringResult(colors, chromaticNumber);
 }
 
 // int smallestDegreeLast(int submatrixSize, int** submatrix)
