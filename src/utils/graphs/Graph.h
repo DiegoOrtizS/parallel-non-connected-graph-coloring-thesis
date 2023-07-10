@@ -2,7 +2,7 @@
 #define GRAPH_H
 
 #include <iostream>
-#include "../types.h"
+using lli = long long int;
 
 namespace mesquo {
     class Graph
