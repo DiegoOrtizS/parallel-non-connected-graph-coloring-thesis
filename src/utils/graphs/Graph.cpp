@@ -2,7 +2,6 @@
 #include "Graph.h"
 #include "../functions/initializeGraph.h"
 
-
 mesquo::Graph::Graph() {
     n = 0;
     graph = nullptr;

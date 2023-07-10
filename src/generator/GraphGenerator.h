@@ -14,7 +14,7 @@ class GraphGenerator : public mesquo::Graph
         lli *colorIndex;
         lli chromaticNumber;
         
-        void intializeColors();
+        void initializeColors();
         static void staticDrawGraph() {
             currentInstance->drawGraph();
         }

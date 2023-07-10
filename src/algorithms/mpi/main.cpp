@@ -3,7 +3,6 @@
 #include "../../utils/functions/glutInitialize.h"
 #include "../../utils/functions/isWellColored.h"
 #include "coloringMPI.h"
-#include <fstream>
 
 int main(int argc, char** argv) {    
     int processId;
@@ -29,7 +28,7 @@ int main(int argc, char** argv) {
 
     if (processId == 0) {
         isWellColored(result.colors, graphGenerator->getN(), graphGenerator->getGraph(), result.labels);
-        std::cout << "Chromatic number:  " << result.chromaticNumber << std::endl;
+        std::cout << "Chromatic number: " << result.chromaticNumber << std::endl;
         std::cout << "Total Time: " << stop - start << " seconds" << std::endl;
 
         glutInitialize(argc, argv);
@@ -38,6 +37,7 @@ int main(int argc, char** argv) {
         graphGenerator->drawGraph();
         glutMainLoop();
     }
+
     MPI_Finalize();
     return 0;
 }

@@ -3,6 +3,7 @@
 #include "../utils/functions/distributeIntegers.h"
 #include "../utils/functions/adjacencyListToMatrix.h"
 #include "../utils/functions/combineComponentsToAdjacencyMatrix.h"
+#include "../utils/functions/initializeGraph.h"
 #include <GL/glut.h>
 #include <cmath>
 #include <stdexcept>
@@ -10,7 +11,7 @@
 #include <random>
 
 
-void GraphGenerator::intializeColors() {
+void GraphGenerator::initializeColors() {
     colors.clear();
     colors.push_back({1.0f, 1.0f, 1.0f});
     colors.push_back({1.0f, 0.0f, 0.0f});
@@ -26,20 +27,22 @@ void GraphGenerator::intializeColors() {
 
 GraphGenerator::GraphGenerator() : Graph() {
     colorIndex = new lli[n];
-    intializeColors();
+    initializeColors();
 }
 
 GraphGenerator::GraphGenerator(lli n) : Graph (n) {
     colorIndex = new lli[n];
-    intializeColors();
+    initializeColors();
 }
 
 GraphGenerator::GraphGenerator(lli n, lli **graph) : Graph (n, graph) {
     colorIndex = new lli[n];
-    intializeColors();
+    initializeColors();
 }
 
-GraphGenerator::~GraphGenerator() {}
+GraphGenerator::~GraphGenerator() {
+    delete[] colorIndex;
+}
 
 void GraphGenerator::setColorIndex(lli *colorIndex, lli *colorLabels) {
     if (colorLabels == nullptr)
@@ -57,6 +60,7 @@ void GraphGenerator::setChromaticNumber(lli chromaticNumber) {
 }
 
 void GraphGenerator::generateGraph(lli m, lli nPrime) {
+    jngen::config.generateLargeObjects = true;
     this->m = m;
     this->nPrime = nPrime;
     std::vector<lli> verticesPerComponent = distributeIntegers(n, nPrime);
@@ -64,7 +68,17 @@ void GraphGenerator::generateGraph(lli m, lli nPrime) {
     std::vector<lli**> components;
     for (lli i = 0; i < nPrime; ++i) {
         jngen::Graph component = jngen::Graph::random(verticesPerComponent[i], edgesPerComponent[i]).connected();
-        components.push_back(adjacencyListToMatrix(component));
+        lli **adjMatrix = adjacencyListToMatrix(component);
+        // print adjMatrix
+        std::cout << "Component " << i << std::endl;
+        for (lli j = 0; j < verticesPerComponent[i]; ++j) {
+            for (lli k = 0; k < verticesPerComponent[i]; ++k) {
+                std::cout << adjMatrix[j][k] << " ";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+        components.push_back(adjMatrix);
     }
     combineComponentsToAdjacencyMatrix(components, verticesPerComponent, graph);
 }
@@ -134,6 +148,9 @@ void GraphGenerator::drawGraph() {
     }
 
     glFlush();
+
+    delete[] precalcXpos;
+    delete[] precalcYpos;
 }
 
 void GraphGenerator::validateGraph() {
@@ -170,6 +187,7 @@ void GraphGenerator::validateGraph() {
 }
 
 void GraphGenerator::saveGraph(std::string dir) {
+    std::cout << "SAVING GRAPH" << std::endl;
     std::ofstream file;
     std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
     file.open(dir + "/" + name + ".txt");
@@ -215,9 +233,12 @@ bool GraphGenerator::loadGraph(std::string name, std::string dir) {
 }
 
 void GraphGenerator::loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir) {
+    this->n = n;
     std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
     bool isGraphLoaded = loadGraph(name, dir);
+
     if (!isGraphLoaded) {
+        initializeGraph(n, graph);
         generateGraph(m, nPrime);
         validateGraph();
         saveGraph(dir);
