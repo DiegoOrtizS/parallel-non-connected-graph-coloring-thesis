@@ -39,16 +39,17 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
             int sum = 0;
             for (int j = displacements[i]; j < displacements[i] + sendCounts[i]; j++) {
                 std::vector<lli> c = components[j];
-                sum += c.size();
-                componentData.push_back(c.size());
+                lli componentSize = c.size();
+                sum += componentSize;
+                componentData.push_back(componentSize);
                 componentData.insert(componentData.end(), c.begin(), c.end());
-                for (lli k = 0; k < c.size(); k++) {
-                    for (lli l = 0; l < c.size(); l++) {
+                for (lli k = 0; k < componentSize; k++) {
+                    for (lli l = 0; l < componentSize; l++) {
                         componentData.push_back(graph[c[k]][c[l]]);
                     }
                 }
             }
-
+                        
             MPI_Isend(componentData.data(), componentData.size(), MPI_LONG_LONG_INT, i, 0, MPI_COMM_WORLD, &request);
             MPI_Isend(&sum, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
         }
@@ -78,12 +79,16 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
         currentIndex += submatrixSize;
 
         lli** submatrix = new lli*[submatrixSize];
+        std::cout << "Process " << processId << ":\n";
         for (int i = 0; i < submatrixSize; i++) {
             submatrix[i] = new lli[submatrixSize];
             for (int j = 0; j < submatrixSize; j++) {
                 submatrix[i][j] = receivedComponent[currentIndex++];
+                std::cout << submatrix[i][j] << " ";
             }
+            std::cout << std::endl;
         }
+        std::cout << std::endl;
 
         ColoringResult result = coloringAlgorithm(submatrixSize, submatrix);
         for (int i = 0; i < submatrixSize; i++) {
@@ -119,6 +124,19 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
         totalColors = new lli[n];
         totalLabels = new lli[n];
     }
+
+    // std::cout << "Process " << processId << ":\n";
+    // std::cout << "Colors: \n";
+    // for (int i = 0; i < colors.size(); i++) {
+    //     std::cout << colors[i] << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << "Labels: \n";
+    // for (int i = 0; i < labels.size(); i++) {
+    //     std::cout << labels[i] << " ";
+    // }
+    // std::cout << std::endl << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
 
     MPI_Igatherv(colors.data(), sumSubmatrixSize, MPI_LONG_LONG_INT, totalColors, submatrixSizes, displacements, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD, &request);
     MPI_Igatherv(labels.data(), sumSubmatrixSize, MPI_LONG_LONG_INT, totalLabels, submatrixSizes, displacements, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD, &request);

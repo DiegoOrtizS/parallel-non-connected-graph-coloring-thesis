@@ -69,15 +69,6 @@ void GraphGenerator::generateGraph(lli m, lli nPrime) {
     for (lli i = 0; i < nPrime; ++i) {
         jngen::Graph component = jngen::Graph::random(verticesPerComponent[i], edgesPerComponent[i]).connected();
         lli **adjMatrix = adjacencyListToMatrix(component);
-        // print adjMatrix
-        std::cout << "Component " << i << std::endl;
-        for (lli j = 0; j < verticesPerComponent[i]; ++j) {
-            for (lli k = 0; k < verticesPerComponent[i]; ++k) {
-                std::cout << adjMatrix[j][k] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
         components.push_back(adjMatrix);
     }
     combineComponentsToAdjacencyMatrix(components, verticesPerComponent, graph);
