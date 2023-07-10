@@ -8,13 +8,11 @@ class GraphGenerator : public mesquo::Graph
 {
     private:
         static GraphGenerator* currentInstance;
-        int m;
-        int nPrime;
-        float maxDensity;
-        int seed;
+        lli m;
+        lli nPrime;
         std::vector<std::array<float, 3>> colors;
-        int *colorIndex;
-        int chromaticNumber;
+        lli *colorIndex;
+        lli chromaticNumber;
         
         void intializeColors();
         static void staticDrawGraph() {
@@ -27,14 +25,14 @@ class GraphGenerator : public mesquo::Graph
 
     public:
         GraphGenerator();
-        GraphGenerator(int n);
-        GraphGenerator(int n, int **graph);
+        GraphGenerator(lli n);
+        GraphGenerator(lli n, lli **graph);
         ~GraphGenerator();
-        void setColorIndex(int *colorIndex);
-        void setChromaticNumber(int chromaticNumber);
-        void generateGraph(int m, int nPrime);
+        void setColorIndex(lli *colorIndex, lli *colorLabels = nullptr);
+        void setChromaticNumber(lli chromaticNumber);
+        void generateGraph(lli m, lli nPrime);
         void drawGraph();
-        bool validateGraph();
+        void validateGraph();
         void saveGraph(std::string dir = "../../data");
         void loadGraph(std::string name, std::string dir = "../../data");
 };

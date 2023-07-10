@@ -1,8 +1,16 @@
+#ifndef COLORING_OMP_H
+#define COLORING_OMP_H
+
 #include <omp.h>
 #include <vector>
 #include <set>
 
-std::pair<int*, int> coloringOMP(int n, int **adjMatrix) {
+#include <omp.h>
+#include <vector>
+#include <set>
+#include "../../utils/structs/coloringResult.h"
+
+ColoringResult coloringOMP(int n, int **adjMatrix) {
     int *colors = new int[n];
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
@@ -74,10 +82,12 @@ std::pair<int*, int> coloringOMP(int n, int **adjMatrix) {
     }
 
     int chromaticNumber = 0;
-    #pragma omp parallel for reduction(max : chromaticNumber) schedule(dynamic)
+    #pragma omp parallel for reduction(max : chromaticNumber)
     for (int i = 0; i < n; i++) {
         chromaticNumber = std::max(chromaticNumber, colors[i]);
     }
 
-    return std::make_pair(colors, chromaticNumber);
+    return ColoringResult(colors, chromaticNumber);
 }
+
+#endif // COLORING_ALGORITHMS_H

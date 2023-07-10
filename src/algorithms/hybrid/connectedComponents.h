@@ -1,3 +1,6 @@
+#ifndef CONNECTED_COMPONENTS_H
+#define CONNECTED_COMPONENTS_H
+
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
@@ -30,13 +33,11 @@ vector<vector<int>> dsu(int matrixSize, int** matrix) {
     int parent[matrixSize];
     int rank[matrixSize];
 
-    #pragma omp parallel for
     for (int i = 0; i < matrixSize; i++) {
         parent[i] = i;
         rank[i] = 0;
     }
 
-    #pragma omp parallel for
     for (int i = 0; i < matrixSize; i++) {
         for (int j = 0; j < matrixSize; j++) {
             if (matrix[i][j]) {
@@ -46,12 +47,8 @@ vector<vector<int>> dsu(int matrixSize, int** matrix) {
     }
 
     unordered_map<int, vector<int>> componentsMap;
-    #pragma omp parallel for shared(componentsMap)
     for (int i = 0; i < matrixSize; i++) {
-        #pragma omp critical
-        {
-            componentsMap[find(parent, i)].push_back(i);
-        }
+        componentsMap[find(parent, i)].push_back(i);
     }
 
     for (auto& [p, c] : componentsMap) {
@@ -60,3 +57,5 @@ vector<vector<int>> dsu(int matrixSize, int** matrix) {
 
     return components;
 }
+
+#endif // CONNECTED_COMPONENTS_H

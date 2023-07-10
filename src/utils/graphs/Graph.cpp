@@ -8,36 +8,36 @@ mesquo::Graph::Graph() {
     graph = nullptr;
 }
 
-mesquo::Graph::Graph(int n) {
+mesquo::Graph::Graph(lli n) {
     this->n = n;
     initializeGraph(n, graph);
 }
 
-mesquo::Graph::Graph(int n, int **graph) {
+mesquo::Graph::Graph(lli n, lli **graph) {
     this->n = n;
     this->graph = graph;
 }
 
 mesquo::Graph::~Graph() {
-    for (int i = 0; i < n; i++) {
+    for (lli i = 0; i < n; i++) {
         delete[] graph[i];
     }
     delete[] graph;
 }
 
-void mesquo::Graph::setN(int n) {
+void mesquo::Graph::setN(lli n) {
     this->n = n;
     initializeGraph(n, graph);
 }
 
-int mesquo::Graph::getN() {
+lli mesquo::Graph::getN() {
     return n;
 }
 
-void mesquo::Graph::setGraph(int **graph) {
+void mesquo::Graph::setGraph(lli **graph) {
     this->graph = graph;
 }
 
-int **mesquo::Graph::getGraph() {
+lli **mesquo::Graph::getGraph() {
     return graph;
 }

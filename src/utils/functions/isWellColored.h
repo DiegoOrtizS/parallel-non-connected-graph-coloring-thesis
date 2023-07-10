@@ -4,26 +4,24 @@
 #include <stdexcept>
 #include <iostream>
 
-bool isWellColored(int* colors, int** adjacencyMatrix, int numVertices) {
-    // Step 1: Verify the number of color vertices
-    for (int vertex = 0; vertex < numVertices; ++vertex) {
+void isWellColored(lli* colors, lli** adjacencyMatrix, lli numVertices, lli *labels = nullptr) {
+    for (lli vertex = 0; vertex < numVertices; ++vertex) {
         if (colors[vertex] == 0) {
-            return false;
+            throw std::logic_error("Error: Vertex " + std::to_string(vertex) + "is not colored.");
         }
     }
 
-    // Step 2: Check color conflicts for adjacent vertices
-    for (int vertex = 0; vertex < numVertices; ++vertex) {
-        int vertexColor = colors[vertex];
-        for (int adjacentVertex = 0; adjacentVertex < numVertices; ++adjacentVertex) {
-            if (adjacencyMatrix[vertex][adjacentVertex] == 1 && colors[adjacentVertex] == vertexColor) {
+    for (lli vertex = 0; vertex < numVertices; ++vertex) {
+        lli vertexColor = labels == nullptr ? colors[vertex] : colors[labels[vertex]];
+        for (lli adjacentVertex = 0; adjacentVertex < numVertices; ++adjacentVertex) {
+            lli adjacentColor = labels == nullptr ? colors[adjacentVertex] : colors[labels[adjacentVertex]];
+            if (adjacencyMatrix[vertex][adjacentVertex] == 1 && adjacentColor == vertexColor) {
                 throw std::logic_error("Error: Vertex " + std::to_string(vertex) + " and vertex " + std::to_string(adjacentVertex) + " have the same color.");
             }
         }
-    }
+    }    
 
     std::cout << "The graph is well colored." << std::endl;
-    return true; // The graph is well colored
 }
 
 # endif // IS_WELL_COLORED_H

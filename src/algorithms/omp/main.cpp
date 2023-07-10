@@ -12,31 +12,29 @@ int main(int argc, char** argv) {
     // GraphGenerator *graph = new GraphGenerator(n);
     // graph->generateGraph(7, 3);
 
-    GraphGenerator* graph = new GraphGenerator();
-    graph->loadGraph("10000 6245000 8");
-    auto adjMatrix = graph->getGraph();
-    graph->validateGraph();
-    int n = graph->getN();
+    GraphGenerator* graphGenerator = new GraphGenerator();
+    // graphGenerator->loadGraph("3 3 1");
+    graphGenerator->loadGraph("9 7 3");
+    // graph->loadGraph("10000 6245000 8");
+    auto graph = graphGenerator->getGraph();
+    graphGenerator->validateGraph();
+    int n = graphGenerator->getN();
     omp_set_num_threads(omp_get_max_threads());
     float beg = omp_get_wtime();
     int *colors, chromaticNumber;
-    std::pair<int*, int> result = coloringOMP(n, adjMatrix);
-    colors = result.first;
-    chromaticNumber = result.second;
+    ColoringResult result = coloringOMP(n, graph);
     float end = omp_get_wtime();
     std::cout << "Time: " << end - beg << std::endl;
-    isWellColored(colors, adjMatrix, n);
-    std::cout << "Chromatic number: " << chromaticNumber << std::endl;
+
+    isWellColored(result.colors, graph, n);
+    std::cout << "Chromatic number: " << result.chromaticNumber << std::endl;
 
     glutInitialize(argc, argv);
-    graph->setColorIndex(colors);
-    graph->setChromaticNumber(chromaticNumber);
-    graph->drawGraph();
+    graphGenerator->setColorIndex(result.colors);
+    graphGenerator->setChromaticNumber(result.chromaticNumber);
+    graphGenerator->drawGraph();
     glutMainLoop();
 
-    for (int i = 0; i < n; i++) {
-        delete[] adjMatrix[i];
-    }
     delete[] colors;
     delete graph;
 

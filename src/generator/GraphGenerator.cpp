@@ -25,37 +25,44 @@ void GraphGenerator::intializeColors() {
 }
 
 GraphGenerator::GraphGenerator() : Graph() {
-    colorIndex = new int[n];
+    colorIndex = new lli[n];
     intializeColors();
 }
 
-GraphGenerator::GraphGenerator(int n) : Graph (n) {
-    colorIndex = new int[n];
+GraphGenerator::GraphGenerator(lli n) : Graph (n) {
+    colorIndex = new lli[n];
     intializeColors();
 }
 
-GraphGenerator::GraphGenerator(int n, int **graph) : Graph (n, graph) {
-    colorIndex = new int[n];
+GraphGenerator::GraphGenerator(lli n, lli **graph) : Graph (n, graph) {
+    colorIndex = new lli[n];
     intializeColors();
 }
 
 GraphGenerator::~GraphGenerator() {}
 
-void GraphGenerator::setColorIndex(int *colorIndex) {
-    this->colorIndex = colorIndex;
+void GraphGenerator::setColorIndex(lli *colorIndex, lli *colorLabels) {
+    if (colorLabels == nullptr)
+        this->colorIndex = colorIndex;
+    else
+    {
+        for (lli i = 0; i < n; ++i) {
+            this->colorIndex[colorLabels[i]] = colorIndex[i];
+        }
+    }
 }
 
-void GraphGenerator::setChromaticNumber(int chromaticNumber) {
+void GraphGenerator::setChromaticNumber(lli chromaticNumber) {
     this->chromaticNumber = chromaticNumber;
 }
 
-void GraphGenerator::generateGraph(int m, int nPrime) {
+void GraphGenerator::generateGraph(lli m, lli nPrime) {
     this->m = m;
     this->nPrime = nPrime;
-    std::vector<int> verticesPerComponent = distributeIntegers(n, nPrime);
-    std::vector<int> edgesPerComponent = distributeIntegers(m, nPrime);
-    std::vector<int**> components;
-    for (int i = 0; i < nPrime; ++i) {
+    std::vector<lli> verticesPerComponent = distributeIntegers(n, nPrime);
+    std::vector<lli> edgesPerComponent = distributeIntegers(m, nPrime);
+    std::vector<lli**> components;
+    for (lli i = 0; i < nPrime; ++i) {
         jngen::Graph component = jngen::Graph::random(verticesPerComponent[i], edgesPerComponent[i]).connected();
         components.push_back(adjacencyListToMatrix(component));
     }
@@ -69,7 +76,7 @@ void GraphGenerator::drawGraph() {
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0.0, 1.0);
 
-    for (int i = colors.size(); i < chromaticNumber; ++i) {
+    for (lli i = colors.size(); i < chromaticNumber; ++i) {
         colors.push_back({dis(gen), dis(gen), dis(gen)});
     }
 
@@ -78,12 +85,12 @@ void GraphGenerator::drawGraph() {
     float *precalcXpos = new float[n];
     float *precalcYpos = new float[n];
 
-    for (int i = 0; i < n; ++i) {
+    for (lli i = 0; i < n; ++i) {
         precalcXpos[i] = cos(i * 2 * M_PI / n);
         precalcYpos[i] = sin(i * 2 * M_PI / n);
     }
 
-    for (int i = 0; i < n; ++i) {
+    for (lli i = 0; i < n; ++i) {
         auto color = colors[colorIndex[i]];
         glColor3f(color[0], color[1], color[2]);
 
@@ -96,7 +103,7 @@ void GraphGenerator::drawGraph() {
     }
 
     glColor3f(0.0, 0.0, 0.0);
-    for (int i = 0; i < n; ++i) {
+    for (lli i = 0; i < n; ++i) {
         
         glPushMatrix();
         glTranslatef(precalcXpos[i], precalcYpos[i], 0.0);
@@ -115,8 +122,8 @@ void GraphGenerator::drawGraph() {
 
     glColor3f(0.5, 0.5, 0.5);
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
+    for (lli i = 0; i < n; ++i) {
+        for (lli j = i + 1; j < n; ++j) {
             if (graph[i][j] == 1) {
                 glBegin(GL_LINES);
                 glVertex3f(precalcXpos[i], precalcYpos[i], 0.0);
@@ -129,52 +136,51 @@ void GraphGenerator::drawGraph() {
     glFlush();
 }
 
-bool GraphGenerator::validateGraph() {
-    int edgeCount = 0;
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
+void GraphGenerator::validateGraph() {
+    lli edgeCount = 0;
+    for (lli i = 0; i < n; ++i) {
+        for (lli j = i + 1; j < n; ++j) {
             edgeCount += graph[i][j];
         }
     }
-    if (edgeCount != m) {
+    if (edgeCount != m)
         throw std::length_error("Error: Number of edges " + std::to_string(m) + " does not match the actual number of " + std::to_string(edgeCount) + " edges in the graph.");
-        return false;
-    }
 
-    int connectedComponents = 0;
+    lli connectedComponents = 0;
     bool* visited = new bool[n];
-    for (int i = 0; i < n; ++i) {
+    for (lli i = 0; i < n; ++i) {
         visited[i] = false;
     }
 
-    for (int i = 0; i < n; ++i) {
+    for (lli i = 0; i < n; ++i) {
         if (!visited[i]) {
-            int componentSize = 0;
-            int componentEdges = 0;
+            lli componentSize = 0;
+            lli componentEdges = 0;
 
             DFS(graph, n, i, visited, componentSize, componentEdges);
             ++connectedComponents;
         }
     }
 
-    if (connectedComponents != nPrime) {
+    if (connectedComponents != nPrime)
         throw std::length_error("Error: Number of connected components " + std::to_string(nPrime) + " does not match the actual number of " + std::to_string(connectedComponents) + " connected components in the graph.");
-        return false;
-    }
 
+    std::cout << "Graph is valid." << std::endl;
     delete[] visited;
-
-    return true;
 }
 
 void GraphGenerator::saveGraph(std::string dir) {
+    std::cout << "SAVING GRAPH\n";
     std::ofstream file;
     std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
     file.open(dir + "/" + name + ".txt");
+    if (!file.is_open()) {
+        throw std::invalid_argument("Error: File " + name + ".txt could not be created.");
+    }
     file << name << std::endl;
-    for (int i = 0; i < n; ++i) {
+    for (lli i = 0; i < n; ++i) {
         file << graph[i][0];
-        for (int j = 1; j < n; ++j) {
+        for (lli j = 1; j < n; ++j) {
             file << " " << graph[i][j];
         }
         file << std::endl;
@@ -192,14 +198,14 @@ void GraphGenerator::loadGraph(std::string name, std::string dir) {
     std::getline(file, line);
     std::istringstream iss(line);
     iss >> n >> m >> nPrime;
-    graph = new int*[n];
-    for (int i = 0; i < n; ++i) {
-        graph[i] = new int[n];
+    graph = new lli*[n];
+    for (lli i = 0; i < n; ++i) {
+        graph[i] = new lli[n];
     }
-    int i = 0;
+    lli i = 0;
     while (std::getline(file, line)) {
         std::istringstream iss(line);
-        int j = 0;
+        lli j = 0;
         while (iss >> graph[i][j]) {
             ++j;
         }

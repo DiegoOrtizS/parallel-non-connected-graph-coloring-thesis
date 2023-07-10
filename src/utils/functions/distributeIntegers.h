@@ -3,13 +3,13 @@
 
 #include <vector>
 
-std::vector<int> distributeIntegers(int n, int nPrime) {
-    int quotient = n / nPrime;
-    int remainder = n % nPrime;
+std::vector<lli> distributeIntegers(lli n, lli nPrime) {
+    lli quotient = n / nPrime;
+    lli remainder = n % nPrime;
 
-    std::vector<int> result(nPrime, quotient);
+    std::vector<lli> result(nPrime, quotient);
 
-    for (int i = 0; i < remainder; i++) {
+    for (lli i = 0; i < remainder; i++) {
         result[i] += 1;
     }
 

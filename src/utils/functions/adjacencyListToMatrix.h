@@ -5,15 +5,15 @@
 #include <iostream>
 #include "../../generator/jngen.h"
 
-int **adjacencyListToMatrix(jngen::Graph graph) {
-    int n = graph.n();
-    int **adjMatrix = new int*[n];
-    for (int i = 0; i < n; ++i) {
-        adjMatrix[i] = new int[n];
-        for (int j = 0; j < n; ++j) {
+lli **adjacencyListToMatrix(jngen::Graph graph) {
+    lli n = graph.n();
+    lli **adjMatrix = new lli*[n];
+    for (lli i = 0; i < n; ++i) {
+        adjMatrix[i] = new lli[n];
+        for (lli j = 0; j < n; ++j) {
             adjMatrix[i][j] = 0;
         }
-        for (int j : graph.edges(i)) {
+        for (lli j : graph.edges(i)) {
             adjMatrix[i][j] = 1;
         }
     }

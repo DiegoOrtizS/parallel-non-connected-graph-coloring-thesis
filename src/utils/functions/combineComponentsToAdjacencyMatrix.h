@@ -3,14 +3,14 @@
 
 #include <vector>
 
-void combineComponentsToAdjacencyMatrix(std::vector<int**> components, 
-                            std::vector<int> verticesPerComponent, int **&graph) {
-    int accumulatedVertices = 0;
-    for (int i = 0; i < components.size(); ++i) {
-        int **component = components[i];
-        int vertexCount = verticesPerComponent[i];
-        for (int j = 0; j < vertexCount; j++) {
-            for (int k = 0; k < vertexCount; ++k) {
+void combineComponentsToAdjacencyMatrix(std::vector<lli**> components, 
+                            std::vector<lli> verticesPerComponent, lli **&graph) {
+    lli accumulatedVertices = 0;
+    for (lli i = 0; i < components.size(); ++i) {
+        lli **component = components[i];
+        lli vertexCount = verticesPerComponent[i];
+        for (lli j = 0; j < vertexCount; j++) {
+            for (lli k = 0; k < vertexCount; ++k) {
                 graph[j+accumulatedVertices][k+accumulatedVertices] = component[j][k];
             }
         }

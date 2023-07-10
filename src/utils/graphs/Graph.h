@@ -2,26 +2,27 @@
 #define GRAPH_H
 
 #include <iostream>
+#include "../types.h"
 
 namespace mesquo {
     class Graph
     {
         protected:
-            int n;
-            int **graph;
+            lli n;
+            lli **graph;
         
         public:
             Graph();
-            Graph(int n);
-            Graph(int n, int **graph);
+            Graph(lli n);
+            Graph(lli n, lli **graph);
             ~Graph();
-            void setN(int n);
-            int getN();
-            void setGraph(int **graph);
-            int** getGraph();
+            void setN(lli n);
+            lli getN();
+            void setGraph(lli **graph);
+            lli** getGraph();
             friend std::ostream &operator<<(std::ostream &os, const Graph &graph) {
-                for (int i = 0; i < graph.n; i++) {
-                    for (int j = 0; j < graph.n; j++) {
+                for (lli i = 0; i < graph.n; i++) {
+                    for (lli j = 0; j < graph.n; j++) {
                         os << graph.graph[i][j] << " ";
                     }
                     os << std::endl;
