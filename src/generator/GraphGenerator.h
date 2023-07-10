@@ -34,5 +34,6 @@ class GraphGenerator : public mesquo::Graph
         void drawGraph();
         void validateGraph();
         void saveGraph(std::string dir = "../../data");
-        void loadGraph(std::string name, std::string dir = "../../data");
+        bool loadGraph(std::string name, std::string dir = "../../data");
+        void loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir = "../../data");
 };

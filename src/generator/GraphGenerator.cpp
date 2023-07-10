@@ -170,7 +170,6 @@ void GraphGenerator::validateGraph() {
 }
 
 void GraphGenerator::saveGraph(std::string dir) {
-    std::cout << "SAVING GRAPH\n";
     std::ofstream file;
     std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
     file.open(dir + "/" + name + ".txt");
@@ -188,11 +187,11 @@ void GraphGenerator::saveGraph(std::string dir) {
     file.close();
 }
 
-void GraphGenerator::loadGraph(std::string name, std::string dir) {
+bool GraphGenerator::loadGraph(std::string name, std::string dir) {
     std::ifstream file;
     file.open(dir + "/" + name + ".txt");
     if (!file.is_open()) {
-        throw std::invalid_argument("Error: File " + name + ".txt does not exist.");
+        return false;
     }
     std::string line;
     std::getline(file, line);
@@ -212,4 +211,15 @@ void GraphGenerator::loadGraph(std::string name, std::string dir) {
         ++i;
     }
     file.close();
+    return true;
+}
+
+void GraphGenerator::loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir) {
+    std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
+    bool isGraphLoaded = loadGraph(name, dir);
+    if (!isGraphLoaded) {
+        generateGraph(m, nPrime);
+        validateGraph();
+        saveGraph(dir);
+    }
 }

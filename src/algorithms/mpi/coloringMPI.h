@@ -110,8 +110,9 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
         totalLabels = new lli[totalCount];
     }
 
-    MPI_Gatherv(colors, submatrixSize, MPI_LONG_LONG_INT, totalColors, submatrixSizes, displacements, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD);
-    MPI_Gatherv(labels, submatrixSize, MPI_LONG_LONG_INT, totalLabels, submatrixSizes, displacements, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD);
+    MPI_Igatherv(colors, submatrixSize, MPI_LONG_LONG_INT, totalColors, submatrixSizes, displacements, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD, &request);
+    MPI_Igatherv(labels, submatrixSize, MPI_LONG_LONG_INT, totalLabels, submatrixSizes, displacements, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD, &request);
+    MPI_Wait(&request, &status);
 
     return ColoringResult(totalColors, maxChromaticNumber, totalLabels);
 }

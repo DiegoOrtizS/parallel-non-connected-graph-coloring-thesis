@@ -7,36 +7,33 @@
 using namespace std;
 
 int main(int argc, char** argv) {
-    // int n = 1e4;
-    // int n = 9;
-    // GraphGenerator *graph = new GraphGenerator(n);
-    // graph->generateGraph(7, 3);
-
     GraphGenerator* graphGenerator = new GraphGenerator();
-    // graphGenerator->loadGraph("3 3 1");
-    graphGenerator->loadGraph("9 7 3");
-    // graph->loadGraph("10000 6245000 8");
-    auto graph = graphGenerator->getGraph();
+    if (argc < 4) {
+        std::cerr << "Insufficient arguments!" << std::endl;
+        return 1;
+    }
+    lli n = std::stoll(argv[1]);
+    lli m = std::stoll(argv[2]);
+    lli nPrime = std::stoll(argv[3]);
+    graphGenerator->loadIfExistsOrGenerateNewGraph(n, m, nPrime);
+
     graphGenerator->validateGraph();
-    int n = graphGenerator->getN();
     omp_set_num_threads(omp_get_max_threads());
+    auto graph = graphGenerator->getGraph();
+
     float beg = omp_get_wtime();
-    int *colors, chromaticNumber;
     ColoringResult result = coloringOMP(n, graph);
     float end = omp_get_wtime();
-    std::cout << "Time: " << end - beg << std::endl;
 
-    isWellColored(result.colors, graph, n);
-    std::cout << "Chromatic number: " << result.chromaticNumber << std::endl;
+    isWellColored(result.colors, n, graph);
+    std::cout << "Chromatic number:  " << result.chromaticNumber << std::endl;
+    std::cout << "Total Time: " << stop - start << " seconds" << std::endl;
 
     glutInitialize(argc, argv);
     graphGenerator->setColorIndex(result.colors);
     graphGenerator->setChromaticNumber(result.chromaticNumber);
     graphGenerator->drawGraph();
     glutMainLoop();
-
-    delete[] colors;
-    delete graph;
 
     return 0;
 }
