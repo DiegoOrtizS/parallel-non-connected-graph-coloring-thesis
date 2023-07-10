@@ -8,7 +8,7 @@
 #include <omp.h>
 #include <vector>
 #include <set>
-#include "../../utils/structs/coloringResult.h"
+#include "../../utils/structs/ColoringResult.h"
 
 ColoringResult coloringOMP(lli n, lli **adjMatrix) {
     lli *colors = new lli[n];
