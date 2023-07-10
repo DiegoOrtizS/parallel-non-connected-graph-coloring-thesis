@@ -7,7 +7,7 @@ make
 
 ## Run
 ```shell
-make run -e n={n} m={m} nPrime={nPrime}
+make run -e n={n} m={m} nPrime={nPrime} threads={threads}
 ```
 
 ## Clean

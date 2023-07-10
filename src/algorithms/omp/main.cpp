@@ -8,17 +8,18 @@ using namespace std;
 
 int main(int argc, char** argv) {
     GraphGenerator* graphGenerator = new GraphGenerator();
-    if (argc < 4) {
+    if (argc < 5) {
         std::cerr << "Insufficient arguments!" << std::endl;
         return 1;
     }
     lli n = std::stoll(argv[1]);
     lli m = std::stoll(argv[2]);
     lli nPrime = std::stoll(argv[3]);
+    int threads = std::stoi(argv[4]);
     graphGenerator->loadIfExistsOrGenerateNewGraph(n, m, nPrime);
 
     graphGenerator->validateGraph();
-    omp_set_num_threads(omp_get_max_threads());
+    omp_set_num_threads(threads);
     auto graph = graphGenerator->getGraph();
 
     float start = omp_get_wtime();
