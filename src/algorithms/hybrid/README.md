@@ -7,7 +7,7 @@ make
 
 ## Run
 ```shell
-make run -e np={NP}
+make run -e np={NP} n={n} m={m} nPrime={nPrime}
 ```
 
 ## Clean

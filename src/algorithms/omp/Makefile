@@ -18,6 +18,9 @@ GraphGenerator.o: $(GENERATOR_DIR)/GraphGenerator.cpp $(GENERATOR_DIR)/GraphGene
 Graph.o: $(UTILS_DIR)/Graph.cpp $(UTILS_DIR)/Graph.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
+run:
+	./a.out ${n} ${m} ${nPrime}
+
 clean:
 	rm -f *.o a.out
 	rm -f $(UTILS_DIR)/*.o

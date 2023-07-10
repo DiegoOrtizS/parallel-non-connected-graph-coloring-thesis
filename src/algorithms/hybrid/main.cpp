@@ -4,8 +4,6 @@
 #include "../../utils/functions/isWellColored.h"
 #include "coloringHybrid.h"
 
-using namespace std;
-
 int main(int argc, char** argv) {    
     int processId;
     MPI_Init(&argc, &argv);
@@ -15,9 +13,15 @@ int main(int argc, char** argv) {
     GraphGenerator *graphGenerator = new GraphGenerator();
 
     if (processId == 0) {
-        // graphGenerator->loadGraph("9 7 3");
-        graphGenerator->loadGraph("10000 6245000 8");
-        graphGenerator->validateGraph();
+        std::cout << argc << std::endl;
+        if (argc < 4) {
+            std::cerr << "Insufficient arguments!" << std::endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        lli n = std::stoll(argv[1]);
+        lli m = std::stoll(argv[2]);
+        lli nPrime = std::stoll(argv[3]);
+        graphGenerator->loadIfExistsOrGenerateNewGraph(n, m, nPrime);
     }
     
     auto start = MPI_Wtime();
@@ -25,7 +29,7 @@ int main(int argc, char** argv) {
     auto stop = MPI_Wtime();
 
     if (processId == 0) {
-        isWellColored(result.colors, graphGenerator->getGraph(), graphGenerator->getN(), result.labels);
+        isWellColored(result.colors, graphGenerator->getN(), graphGenerator->getGraph(), result.labels);
         std::cout << "Chromatic number: " << result.chromaticNumber << std::endl;
         std::cout << "Total time: " << stop - start << " seconds" << std::endl;
         
@@ -35,6 +39,7 @@ int main(int argc, char** argv) {
         graphGenerator->drawGraph();
         glutMainLoop();
     }
+    
     MPI_Finalize();
     return 0;
 }

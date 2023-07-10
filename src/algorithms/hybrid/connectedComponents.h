@@ -5,18 +5,16 @@
 #include <unordered_map>
 #include <algorithm>
 
-using namespace std;
-
-int find(int parent[], int x) {
+int find(lli parent[], lli x) {
     if (parent[x] == x) {
         return x;
     }
     return parent[x] = find(parent, parent[x]);
 }
 
-void unionSet(int parent[], int rank[], int x, int y) {
-    int px = find(parent, x);
-    int py = find(parent, y);
+void unionSet(lli parent[], lli rank[], lli x, lli y) {
+    lli px = find(parent, x);
+    lli py = find(parent, y);
 
     if (rank[px] > rank[py]) {
         parent[py] = px;
@@ -28,26 +26,27 @@ void unionSet(int parent[], int rank[], int x, int y) {
     }
 }
 
-vector<vector<int>> dsu(int matrixSize, int** matrix) {
-    vector<vector<int>> components;
-    int parent[matrixSize];
-    int rank[matrixSize];
+std::vector<std::vector<lli>> dsu(lli matrixSize, lli** matrix) {
+    std::vector<std::vector<lli>> components;
+    lli parent[matrixSize];
+    lli rank[matrixSize];
 
-    for (int i = 0; i < matrixSize; i++) {
+    for (lli i = 0; i < matrixSize; i++) {
         parent[i] = i;
         rank[i] = 0;
     }
 
-    for (int i = 0; i < matrixSize; i++) {
-        for (int j = 0; j < matrixSize; j++) {
+    for (lli i = 0; i < matrixSize; i++) {
+        for (lli j = 0; j < matrixSize; j++) {
             if (matrix[i][j]) {
                 unionSet(parent, rank, i, j);
             }
         }
     }
 
-    unordered_map<int, vector<int>> componentsMap;
-    for (int i = 0; i < matrixSize; i++) {
+    std::unordered_map<lli, std::vector<lli>> componentsMap;
+
+    for (lli i = 0; i < matrixSize; i++) {
         componentsMap[find(parent, i)].push_back(i);
     }
 

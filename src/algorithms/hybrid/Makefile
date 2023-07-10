@@ -19,7 +19,7 @@ Graph.o: $(UTILS_DIR)/Graph.cpp $(UTILS_DIR)/Graph.h
 	$(CXX) $(CFLAGS) -c $<
 
 run:
-	mpirun -np ${np} ./a.out
+	mpirun -np ${np} ./a.out ${n} ${m} ${nPrime}
 
 clean:
 	rm -f *.o a.out

@@ -10,18 +10,18 @@
 #include <set>
 #include "../../utils/structs/coloringResult.h"
 
-ColoringResult coloringOMP(int n, int **adjMatrix) {
-    int *colors = new int[n];
+ColoringResult coloringOMP(lli n, lli **adjMatrix) {
+    lli *colors = new lli[n];
     #pragma omp parallel for
-    for (int i = 0; i < n; i++) {
-        std::set<int> C;
-        for (int j = 0; j < n; j++) {
+    for (lli i = 0; i < n; i++) {
+        std::set<lli> C;
+        for (lli j = 0; j < n; j++) {
             if (adjMatrix[i][j] && colors[j] != 0) {
                 C.insert(colors[j]);
             }
         }
 
-        int smallestColor = 1;
+        lli smallestColor = 1;
         while (C.count(smallestColor) > 0) {
             smallestColor++;
         }
@@ -31,21 +31,21 @@ ColoringResult coloringOMP(int n, int **adjMatrix) {
 
     #pragma omp barrier
 
-    std::vector<int> U;
-    for (int i = 0; i < n; i++) {
+    std::vector<lli> U;
+    for (lli i = 0; i < n; i++) {
         U.push_back(i);
     }
 
-    int iteration = 1;
+    lli iteration = 1;
     while (!U.empty()) {
-        std::vector<int> L;
+        std::vector<lli> L;
 
         #pragma omp parallel for
-        for (int i = 0; i < U.size(); i++) {
-            int vertex = U[i];
+        for (lli i = 0; i < U.size(); i++) {
+            lli vertex = U[i];
             bool shouldUpdateColor = false;
 
-            for (int j = 0; j < n; j++) {
+            for (lli j = 0; j < n; j++) {
                 if (adjMatrix[vertex][j] && j > vertex && colors[j] == colors[vertex]) {
                     shouldUpdateColor = true;
                     break;
@@ -53,14 +53,14 @@ ColoringResult coloringOMP(int n, int **adjMatrix) {
             }
 
             if (shouldUpdateColor) {
-                std::set<int> C;
-                for (int j = 0; j < n; j++) {
+                std::set<lli> C;
+                for (lli j = 0; j < n; j++) {
                     if (adjMatrix[vertex][j] && colors[j] != 0) {
                         C.insert(colors[j]);
                     }
                 }
 
-                int smallestColor = 1;
+                lli smallestColor = 1;
                 while (C.count(smallestColor) > 0) {
                     smallestColor++;
                 }
@@ -81,9 +81,9 @@ ColoringResult coloringOMP(int n, int **adjMatrix) {
         iteration++;
     }
 
-    int chromaticNumber = 0;
+    lli chromaticNumber = 0;
     #pragma omp parallel for reduction(max : chromaticNumber)
-    for (int i = 0; i < n; i++) {
+    for (lli i = 0; i < n; i++) {
         chromaticNumber = std::max(chromaticNumber, colors[i]);
     }
 

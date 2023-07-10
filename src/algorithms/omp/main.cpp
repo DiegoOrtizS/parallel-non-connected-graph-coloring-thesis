@@ -21,9 +21,9 @@ int main(int argc, char** argv) {
     omp_set_num_threads(omp_get_max_threads());
     auto graph = graphGenerator->getGraph();
 
-    float beg = omp_get_wtime();
+    float start = omp_get_wtime();
     ColoringResult result = coloringOMP(n, graph);
-    float end = omp_get_wtime();
+    float stop = omp_get_wtime();
 
     isWellColored(result.colors, n, graph);
     std::cout << "Chromatic number:  " << result.chromaticNumber << std::endl;
