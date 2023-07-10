@@ -5,13 +5,13 @@
 #include <algorithm>
 #include "../../utils/structs/ColoringResult.h"
 
-ColoringResult largestDegreeFirst(int submatrixSize, int** submatrix)
+ColoringResult largestDegreeFirst(lli submatrixSize, lli** submatrix)
 {
-    int* colors = new int[submatrixSize];
-    std::vector<std::pair<int, int>> degrees;
-    for (int i = 0; i < submatrixSize; i++) {
-        int degree = 0;
-        for (int j = 0; j < submatrixSize; j++) {
+    lli* colors = new lli[submatrixSize];
+    std::vector<std::pair<lli, lli>> degrees;
+    for (lli i = 0; i < submatrixSize; i++) {
+        lli degree = 0;
+        for (lli j = 0; j < submatrixSize; j++) {
             if (submatrix[i][j]) {
                 degree++;
             }
@@ -19,15 +19,15 @@ ColoringResult largestDegreeFirst(int submatrixSize, int** submatrix)
         degrees.push_back({degree, i});
     }
 
-    sort(degrees.begin(), degrees.end(), greater<pair<int, int>>());
+    std::sort(degrees.begin(), degrees.end(), std::greater<std::pair<lli, lli>>());
 
-    int chromaticNumber = 0;
-    for (int i = 0; i < submatrixSize; i++) {
-        int node = degrees[i].second;
-        int color = 1;
+    lli chromaticNumber = 0;
+    for (lli i = 0; i < submatrixSize; i++) {
+        lli node = degrees[i].second;
+        lli color = 1;
         while (true) {
             bool ok = true;
-            for (int j = 0; j < submatrixSize; j++) {
+            for (lli j = 0; j < submatrixSize; j++) {
                 if (submatrix[node][j] && colors[j] == color) {
                     ok = false;
                     break;
@@ -39,7 +39,7 @@ ColoringResult largestDegreeFirst(int submatrixSize, int** submatrix)
             color++;
         }
         colors[node] = color;
-        chromaticNumber = max(chromaticNumber, color);
+        chromaticNumber = std::max(chromaticNumber, color);
     }
 
     return ColoringResult(colors, chromaticNumber);
