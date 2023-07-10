@@ -1,1 +1,1 @@
-typedef long long int lli;
+using lli = long long int;
