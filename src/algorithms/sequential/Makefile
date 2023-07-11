@@ -1,12 +1,13 @@
 CC = g++
 CFLAGS = -std=c++11 -Wall -Wextra
 LDFLAGS = -lGL -lGLU -lglut
-UTILS_DIR = ../../utils
+UTILS_GRAPHS_DIR = ../../utils/graphs
+UTILS_FUNCTIONS_DIR = ../../utils/functions
 GENERATOR_DIR = ../../generator
 
 all: a.out
 
-a.out: main.o GraphGenerator.o $(UTILS_DIR)/Graph.o
+a.out: main.o GraphGenerator.o $(UTILS_GRAPHS_DIR)/Graph.o $(UTILS_FUNCTIONS_DIR)/initializeGraph.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 main.o: main.cpp
@@ -15,10 +16,16 @@ main.o: main.cpp
 GraphGenerator.o: $(GENERATOR_DIR)/GraphGenerator.cpp $(GENERATOR_DIR)/GraphGenerator.h
 	$(CC) $(CFLAGS) -c $<
 
-Graph.o: $(UTILS_DIR)/Graph.cpp $(UTILS_DIR)/Graph.h
+Graph.o: $(UTILS_GRAPHS_DIR)/Graph.cpp $(UTILS_GRAPHS_DIR)/Graph.h
 	$(CC) $(CFLAGS) -c $< -o $@
+
+initializeGraph.o: $(UTILS_FUNCTIONS_DIR)/initializeGraph.cpp $(UTILS_FUNCTIONS_DIR)/initializeGraph.h
+	$(CXX) $(CFLAGS) -c $< -o $@
+
+run:
+	./a.out ${n} ${m} ${nPrime}
 
 clean:
 	rm -f *.o a.out
-	rm -f $(UTILS_DIR)/*.o
+	rm -f $(UTILS_GRAPHS_DIR)/*.o
 	rm -f $(GENERATOR_DIR)/*.o
