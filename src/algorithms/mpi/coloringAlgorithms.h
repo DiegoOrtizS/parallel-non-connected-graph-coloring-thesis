@@ -1,5 +1,5 @@
-#ifndef COLORING_ALGORITHMS_H
-#define COLORING_ALGORITHMS_H
+#ifndef COLORING_ALGORITHMS_MPI_H
+#define COLORING_ALGORITHMS_MPI_H
 
 #include <vector>
 #include <algorithm>
@@ -50,4 +50,4 @@ ColoringResult largestDegreeFirst(lli submatrixSize, lli** submatrix)
 
 // }
 
-#endif // COLORING_ALGORITHMS_H
+#endif // COLORING_ALGORITHMS_MPI_H

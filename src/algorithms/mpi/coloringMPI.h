@@ -106,7 +106,7 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
         coloringComponents(componentData, coloringAlgorithm, colors, labels, chromaticNumber);
 
     }
-    else { // Processes other than 0
+    else {
         int recvCount;
         MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
         MPI_Get_count(&status, MPI_LONG_LONG_INT, &recvCount);
@@ -150,7 +150,6 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
     }
 
     return ColoringResult(totalColors, maxChromaticNumber, totalLabels);
-
 }
 
 #endif // COLORING_MPI_H

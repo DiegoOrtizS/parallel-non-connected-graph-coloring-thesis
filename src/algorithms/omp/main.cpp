@@ -30,11 +30,11 @@ int main(int argc, char** argv) {
     std::cout << "Chromatic number:  " << result.chromaticNumber << std::endl;
     std::cout << "Total Time: " << stop - start << " seconds" << std::endl;
 
-    glutInitialize(argc, argv);
-    graphGenerator->setColorIndex(result.colors);
-    graphGenerator->setChromaticNumber(result.chromaticNumber);
-    graphGenerator->drawGraph();
-    glutMainLoop();
+    // glutInitialize(argc, argv);
+    // graphGenerator->setColorIndex(result.colors);
+    // graphGenerator->setChromaticNumber(result.chromaticNumber);
+    // graphGenerator->drawGraph();
+    // glutMainLoop();
 
     return 0;
 }

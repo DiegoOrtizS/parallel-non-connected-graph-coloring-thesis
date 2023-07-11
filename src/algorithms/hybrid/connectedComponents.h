@@ -1,5 +1,5 @@
-#ifndef CONNECTED_COMPONENTS_H
-#define CONNECTED_COMPONENTS_H
+#ifndef CONNECTED_COMPONENTS_HYBRID_H
+#define CONNECTED_COMPONENTS_HYBRID_H
 
 #include <vector>
 #include <unordered_map>
@@ -57,4 +57,4 @@ std::vector<std::vector<lli>> dsu(lli matrixSize, lli** matrix) {
     return components;
 }
 
-#endif // CONNECTED_COMPONENTS_H
+#endif // CONNECTED_COMPONENTS_HYBRID_H
