@@ -7,7 +7,7 @@ GENERATOR_DIR = ../../generator
 
 all: a.out
 
-a.out: main.o GraphGenerator.o $(UTILS_GRAPHS_DIR)/Graph.o InitializeGraph.o
+a.out: main.o GraphGenerator.o $(UTILS_GRAPHS_DIR)/Graph.o initializeGraph.o
 	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 main.o: main.cpp
@@ -19,7 +19,7 @@ GraphGenerator.o: $(GENERATOR_DIR)/GraphGenerator.cpp $(GENERATOR_DIR)/GraphGene
 Graph.o: $(UTILS_GRAPHS_DIR)/Graph.cpp $(UTILS_GRAPHS_DIR)/Graph.h
 	$(CXX) $(CFLAGS) -c $<
 
-InitializeGraph.o: $(UTILS_FUNCTIONS_DIR)/initializeGraph.cpp $(UTILS_FUNCTIONS_DIR)/initializeGraph.h
+initializeGraph.o: $(UTILS_FUNCTIONS_DIR)/initializeGraph.cpp $(UTILS_FUNCTIONS_DIR)/initializeGraph.h
 	$(CXX) $(CFLAGS) -c $<
 
 run:
