@@ -136,6 +136,45 @@ La versión analizada en la tesis (v1) es el comportamiento por defecto. Las ext
 
 El nombre del algoritmo en el CSV refleja las opciones (por ejemplo, `mpi-ldf-lpt-replicate`).
 
+
+## Versión v2 sin raíz (`algorithms/mpi_v2`)
+
+Lee la lista de aristas binaria (`.edges`) en lugar de la matriz. No tiene fase serial en la raíz. Usa memoria $\Theta(n + m/p)$ por proceso, así que funciona con grafos de $n \ge 10^5$.
+
+```bash
+cd src/generator && ./a.out 100000 5000000 64 --edges-only   # sin matriz n x n
+cd ../algorithms/mpi_v2 && make && mpirun -np 16 ./a.out 100000 5000000 64
+```
+
+Funciona en cinco pasos:
+
+1. DSU local sobre una franja de $m/p$ aristas.
+2. Fusión dispersa en árbol binomial: solo se envían los pares $(v, \text{raíz}(v))$ con raíz distinta, como en SiskinCC.
+3. LPT replicado sobre $n_i + m_i$.
+4. `MPI_Alltoallv` de las aristas al dueño de cada componente.
+5. LDF en CSR.
+
+Colorea cada vértice igual que el LDF de v1; la prueba de humo lo comprueba para $p = 1$ y $p = 4$. El significado de cada columna de fase en v2 está en `CONTEXT.md`.
+
+## Volumen de comunicación
+
+Las versiones MPI, híbrida y v2 imprimen además una línea con los bytes entregados a otros procesos en cada fase, sumados sobre todos los procesos:
+
+```
+VOLUME,algorithm,n,m,k,p,h,bytes_dsu,bytes_pack,bytes_send,bytes_gather,bytes_total
+```
+
+El volumen es determinista para una instancia y un $p$. El job `communication-volume` de la CI lo mide en G1 y G2 para v1, `--replicate` y v2.
+
+## Formato de grafos
+
+El generador escribe cada instancia en dos formatos, que describen exactamente el mismo grafo (la prueba de humo los compara byte a byte):
+
+- `"<n> <m> <k>[variante].txt"`: matriz de adyacencia en texto (v1);
+- `"<n> <m> <k>[variante].edges"`: lista de aristas binaria (v2): cabecera int64 `(n, m, k)` y `m` pares `uint32` ordenados con `u < v`.
+
+`--edges-only` omite la matriz. Las instancias son reproducibles: jngen usa la semilla 42, o la que indique `GRAPH_VARIANT=seed=x`.
+
 ## Calidad del coloreo
 
 `scripts/coloring_quality.py` (requiere `networkx`) compara LDF y DSatur con cotas del número cromático por componente. En las componentes densas usa el emparejamiento máximo y los triángulos del grafo complemento, y da $\chi$ exacto cuando el complemento no tiene triángulos. La CI lo ejecuta sobre los grafos G1, G2 y G3 de la tesis (job `coloring-quality`, artefactos `quality-*`).

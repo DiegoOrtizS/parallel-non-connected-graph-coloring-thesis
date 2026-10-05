@@ -30,9 +30,10 @@ int main(int argc, char** argv) {
     }
 
     PhaseTimes phases;
+    CommVolume volume;
     MPI_Barrier(MPI_COMM_WORLD);
     double start = MPI_Wtime();
-    ColoringResult result = coloringMPI(processId, n, graphGenerator->getGraph(), largestDegreeFirst, &phases, options);
+    ColoringResult result = coloringMPI(processId, n, graphGenerator->getGraph(), largestDegreeFirst, &phases, options, &volume);
     double stop = MPI_Wtime();
 
     if (processId == 0) {
@@ -40,6 +41,7 @@ int main(int argc, char** argv) {
         std::cout << "Number of colors: " << result.chromaticNumber << std::endl;
         std::cout << "Total time: " << stop - start << " seconds" << std::endl;
         printCsvLine("mpi-ldf" + suffix, n, m, nPrime, processSize, 1, stop - start, phases, result.chromaticNumber);
+        printVolumeLine("mpi-ldf" + suffix, n, m, nPrime, processSize, 1, volume);
         delete[] result.colors;
         delete[] result.labels;
     }

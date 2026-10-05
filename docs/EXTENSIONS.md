@@ -141,6 +141,16 @@ Instancias de SuiteSparse o SNAP con varias componentes conexas. Estas coleccion
 
 ## 8. Diseño sin raíz: DSU distribuido y redistribución
 
+> **Estado (2026-10-05): implementado en `algorithms/mpi_v2` (PR #4).**
+>
+> - La fusión es **dispersa** desde el principio, al estilo SiskinCC: cada proceso envía solo los pares $(v, \text{raíz}(v))$ con raíz distinta.
+> - Lectura con franjas contiguas de aristas, sin E/S paralela de MPI.
+> - LPT replicado sobre $n_i + m_i$.
+> - Verificado en la CI: encuentra las $k$ componentes y colorea igual que el LDF de v1 con $p = 1$ y $p = 4$.
+> - Volumen medido en G2 con $p = 4$: 9.0 MB en aristas frente a 18.8 MB de v1 y 2.40 GB de la replicación.
+>
+> La derivación de costo vigente es la de `methodology.tex`, §Rediseño sin raíz. Con la fusión dispersa, el término de comunicación de la fusión baja a $\beta\min\{n, m/p\}\log p$. Siguen presentes el recorrido de $n$ vértices y la difusión de $n$ identificadores, de modo que la isoeficiencia conserva la forma $m = \Omega(p\,n\log p)$.
+
 Es el único cambio que ataca la isoeficiencia. Mientras exista una fase serial del mismo orden que el trabajo total, el número útil de procesos está acotado por una constante.
 
 **Algoritmo (por proceso $r$).**

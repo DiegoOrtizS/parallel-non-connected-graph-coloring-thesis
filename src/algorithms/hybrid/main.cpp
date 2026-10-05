@@ -34,9 +34,10 @@ int main(int argc, char** argv) {
     }
 
     PhaseTimes phases;
+    CommVolume volume;
     MPI_Barrier(MPI_COMM_WORLD);
     double start = MPI_Wtime();
-    ColoringResult result = coloringHybrid(processId, n, graphGenerator->getGraph(), coloringOMP, &phases, options);
+    ColoringResult result = coloringHybrid(processId, n, graphGenerator->getGraph(), coloringOMP, &phases, options, &volume);
     double stop = MPI_Wtime();
 
     if (processId == 0) {
@@ -45,6 +46,7 @@ int main(int argc, char** argv) {
         std::cout << "Number of colors: " << result.chromaticNumber << std::endl;
         std::cout << "Total time: " << stop - start << " seconds" << std::endl;
         printCsvLine("hybrid-rsoc" + suffix, n, m, nPrime, processSize, threads, stop - start, phases, result.chromaticNumber);
+        printVolumeLine("hybrid-rsoc" + suffix, n, m, nPrime, processSize, threads, volume);
         delete[] result.colors;
         delete[] result.labels;
     }

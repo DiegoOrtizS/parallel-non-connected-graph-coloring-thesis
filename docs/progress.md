@@ -2,17 +2,20 @@
 
 ## State (2026-10-05)
 
-- PR #2 (`fix/experiments`, draft): measurement fixes, per-phase instrumentation, CI green.
-- Milestone A done in code, CI green:
-  - generator variants (`GRAPH_VARIANT`: Zipf sizes, permuted labels),
-  - `--lpt` and `--replicate` in MPI and hybrid,
-  - ping-pong benchmark,
-  - coloring quality with exact chi via complement matching (CI job `coloring-quality` on G1, G2, G3),
-  - top-level `Makefile` (`build`, `smoke`, `quality`, `results`).
-- First real result: chi(G1) = 53 exactly and LDF is optimal on G1; chi(G2) in [105, 150].
+Stacked draft PRs, all CI green:
+
+1. #2 `fix/experiments` → `main`: measurement fixes, instrumentation, milestone A (variants, LPT, replicate, ping-pong, coloring quality).
+2. #3 `feat/edge-list` → #2: binary edge-list format; deterministic jngen seed (instances are now reproducible); both formats byte-identical.
+3. #4 `feat/root-free` → #3: root-free v2 (`algorithms/mpi_v2`), communication-volume accounting, CI job `communication-volume`.
+
+Results already valid for the thesis (deterministic, from CI):
+
+- chi(G1) = 52 exactly, LDF optimal; chi(G2) in [105, 150].
+- Communication volume, p = 4: replication / components = 63.4 (G1) and 127.7 (G2), matching the model p*k.
+- v2 sends about half of v1 on dense components.
 
 ## Next
 
-1. Diego requests Khipu access; run the v1 campaign plus `--replicate` (H1) and ping-pong (alpha, beta).
-2. Milestone B: edge-list format + CSR, density-based block representation, root-free distributed DSU (review SiskinCC/RobinCC first), MPI 4 partitioned communication behind a flag.
-3. After the campaign: validate the cost model and write the "Redesign" subsection of the thesis.
+1. Milestone B1c: `--scatterv`, and bitmap blocks in the root-based path.
+2. Milestone C (needs Khipu): timing campaigns for v1, replicate, v2; ping-pong for alpha and beta; validation of the time model.
+3. Out of scope until Khipu or a newer MPI is available: MPI 4 partitioned communication (`MPI_Psend_init` is missing in the Open MPI 4.1 of ubuntu-latest), Kokkos/GPU.
