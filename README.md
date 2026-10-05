@@ -187,7 +187,9 @@ Los bloques de complemento se colorean sin expandirlos:
 
 - `--color=ldf` (por defecto): el voraz LDF sobre el complemento, con los mismos colores que sobre $G$ y $O(n_i \log n_i + \bar m_i)$ de trabajo.
 - `--color=matching`: un emparejamiento maximal del complemento (Karp–Sipser); cada par emparejado comparte color, de modo que usa $n_i - |M|$ colores.
-- `--color=cliques`: primero cliques disjuntas del complemento con al menos 3 vértices (una de $s$ vértices ahorra $s - 1$ colores), las más grandes primero y, a igual tamaño, las que tocan menos cliques; luego Karp–Sipser sobre los vértices libres. Usa $n_i - \sum (|Q| - 1) - |M|$ colores.
+- `--color=cliques`: primero cliques disjuntas del complemento con al menos 3 vértices (una de $s$ vértices ahorra $s - 1$ colores), las más grandes primero y, a igual tamaño, las que tocan menos cliques. Luego una búsqueda local: inserta una clique, desaloja las que se le superponen y vuelve a cubrir los vértices liberados; el movimiento se acepta solo si bajan los colores, y el trabajo tiene un tope determinista. Por último, Karp–Sipser sobre los vértices libres. Usa $n_i - \sum (|Q| - 1) - |M|$ colores.
+
+Los métodos `matching`, `cliques` y `best` también se aplican a bloques en mapa de bits con densidad $\ge 1/2$: el dueño construye el complemento. `best` incluye LDF, así que nunca usa más colores.
 - `--color=best`: por componente, el que use menos colores de los tres.
 
 Medido en la CI con $p = 4$:
@@ -208,6 +210,8 @@ src/baselines/colpack/driver ca-GrQc.mtx
 ```
 
 El job `real-graph-and-baselines` de la CI hace todo lo anterior con ca-GrQc. Además ejecuta ColPack sobre G1.
+
+El job `components-baselines` compila, en commits fijados, FastSV y LACC (CombBLAS) y ConnectIt y SDB14 (GBBS). Luego verifica que todos encuentran el mismo número de componentes que `mpi_v2` en G2, G2 Zipf, un grafo permutado de $10^6$ vértices y ca-GrQc. `convert_graph.py to-adj` genera el formato de GBBS. No compara tiempos; eso queda para Khipu.
 
 ## Volumen de comunicación
 
