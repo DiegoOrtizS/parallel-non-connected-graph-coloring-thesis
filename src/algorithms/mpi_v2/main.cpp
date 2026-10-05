@@ -1,9 +1,9 @@
 #include <mpi.h>
 #include <algorithm>
-#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <numeric>
 #include <queue>
 #include <string>
@@ -33,8 +33,8 @@
 //   send   MPI_Send per process, or one MPI_Scatterv with --scatterv
 //   color  complement blocks are colored on the complement, never expanded:
 //          --color=ldf (default) same colors as LDF on G; --color=matching coloring from a maximal
-//          matching of the complement; --color=cliques disjoint triangles of the complement, then
-//          a matching of the rest; --color=best the fewest colors of the three per component
+//          matching of the complement; --color=cliques disjoint cliques of the complement, larger
+//          first, then a matching of the rest; --color=best the fewest colors of the three per component
 //
 // Both modes then build a CSR of each process's components, color it with greedy Largest-Degree-First
 // in the same vertex order as the v1 program (so every version assigns the same colors), gather the
@@ -404,39 +404,78 @@ std::vector<uint32_t> matchingColoringComplement(uint32_t size, const std::vecto
     return colorsFromClasses(size, karpSipserMatching(size, offsets, targets, taken));
 }
 
-// Coloring from triangles and a matching of H. A triangle of H is an independent set of 3 vertices
-// of G and saves two colors (two per three vertices, against one per two for a matched pair), so
-// vertex-disjoint triangles are taken first, greedily, those whose vertices lie in the fewest
-// triangles first; then a Karp-Sipser matching of the vertices left. Uses n - 2T - |M| colors.
-// Listing the triangles costs O(sum over v of deg_H(v)^2), small because H is sparse.
-std::vector<uint32_t> cliqueColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
-    std::vector<std::array<uint32_t, 3>> triangles;
-    std::vector<uint32_t> mark(size, UINT32_MAX), inTriangles(size, 0);
-    for (uint32_t u = 0; u < size; u++) {
-        for (uint32_t i = offsets[u]; i < offsets[u + 1]; i++) {
-            mark[targets[i]] = u;
+// Appends every clique of H with at least 3 vertices that extends `clique` with vertices of
+// `candidates` (common neighbors larger than every member, sorted). Each clique is listed once,
+// from its smallest vertex. Stops at maxCliques.
+void listCliques(std::vector<uint32_t> &clique, const std::vector<uint32_t> &candidates, const std::vector<std::vector<uint32_t>> &higher,
+                 std::vector<std::vector<uint32_t>> &cliques, size_t maxCliques) {
+    for (size_t i = 0; i < candidates.size() && cliques.size() < maxCliques; i++) {
+        uint32_t w = candidates[i];
+        clique.push_back(w);
+        if (clique.size() >= 3) {
+            cliques.push_back(clique);
         }
-        for (uint32_t i = offsets[u]; i < offsets[u + 1]; i++) {
-            uint32_t v = targets[i];
-            for (uint32_t j = offsets[v]; j < offsets[v + 1] && v > u; j++) {
-                uint32_t w = targets[j];
-                if (w > v && mark[w] == u) {
-                    triangles.push_back({u, v, w});
-                    inTriangles[u]++, inTriangles[v]++, inTriangles[w]++;
-                }
+        std::vector<uint32_t> next;
+        std::set_intersection(candidates.begin() + i + 1, candidates.end(), higher[w].begin(), higher[w].end(), std::back_inserter(next));
+        if (!next.empty()) {
+            listCliques(clique, next, higher, cliques, maxCliques);
+        }
+        clique.pop_back();
+    }
+}
+
+// Coloring from cliques and a matching of H. A clique of s vertices of H is an independent set of
+// G and saves s - 1 colors, (s - 1)/s per vertex against 1/2 for a matched pair, so vertex-disjoint
+// cliques of at least 3 vertices are taken first, greedily: larger cliques first, then those whose
+// vertices lie in the fewest cliques. Then a Karp-Sipser matching of the vertices left. Uses
+// n - sum(|Q| - 1) colors; with only triangles, n - 2T - |M|. The cliques are listed by extending
+// each vertex with its larger neighbors, short lists because H is sparse in dense components; the
+// listing stops at maxCliques, and the packing then uses the cliques listed so far.
+std::vector<uint32_t> cliqueColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
+    const size_t maxCliques = 500000;
+    std::vector<std::vector<uint32_t>> higher(size), cliques;
+    for (uint32_t v = 0; v < size; v++) {
+        for (uint32_t i = offsets[v]; i < offsets[v + 1]; i++) {
+            if (targets[i] > v) {
+                higher[v].push_back(targets[i]);
             }
         }
+        std::sort(higher[v].begin(), higher[v].end());
     }
-    auto conflicts = [&](const std::array<uint32_t, 3> &t) { return inTriangles[t[0]] + inTriangles[t[1]] + inTriangles[t[2]]; };
-    std::sort(triangles.begin(), triangles.end(), [&](const auto &a, const auto &b) {
-        return conflicts(a) != conflicts(b) ? conflicts(a) < conflicts(b) : a < b;
+    std::vector<uint32_t> clique;
+    for (uint32_t v = 0; v < size && cliques.size() < maxCliques; v++) {
+        clique.assign(1, v);
+        listCliques(clique, higher[v], higher, cliques, maxCliques);
+    }
+
+    std::vector<uint64_t> inCliques(size, 0), conflicts(cliques.size(), 0);
+    for (const auto &c : cliques) {
+        for (uint32_t v : c) {
+            inCliques[v]++;
+        }
+    }
+    for (size_t j = 0; j < cliques.size(); j++) {
+        for (uint32_t v : cliques[j]) {
+            conflicts[j] += inCliques[v];
+        }
+    }
+    std::vector<size_t> order(cliques.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+        if (cliques[a].size() != cliques[b].size()) {
+            return cliques[a].size() > cliques[b].size();
+        }
+        return conflicts[a] != conflicts[b] ? conflicts[a] < conflicts[b] : cliques[a] < cliques[b];
     });
+
     std::vector<char> taken(size, 0);
     std::vector<std::vector<uint32_t>> classes;
-    for (const auto &t : triangles) {
-        if (!taken[t[0]] && !taken[t[1]] && !taken[t[2]]) {
-            taken[t[0]] = taken[t[1]] = taken[t[2]] = 1;
-            classes.push_back({t[0], t[1], t[2]});
+    for (size_t j : order) {
+        if (std::none_of(cliques[j].begin(), cliques[j].end(), [&](uint32_t v) { return taken[v]; })) {
+            for (uint32_t v : cliques[j]) {
+                taken[v] = 1;
+            }
+            classes.push_back(cliques[j]);
         }
     }
     for (auto &pair : karpSipserMatching(size, offsets, targets, taken)) {
