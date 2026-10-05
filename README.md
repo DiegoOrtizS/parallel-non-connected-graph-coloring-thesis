@@ -187,7 +187,7 @@ Los bloques de complemento se colorean sin expandirlos:
 
 - `--color=ldf` (por defecto): el voraz LDF sobre el complemento, con los mismos colores que sobre $G$ y $O(n_i \log n_i + \bar m_i)$ de trabajo.
 - `--color=matching`: un emparejamiento maximal del complemento (Karp–Sipser); cada par emparejado comparte color, de modo que usa $n_i - |M|$ colores.
-- `--color=cliques`: primero triángulos disjuntos del complemento (cada uno ahorra dos colores), empezando por los que tocan menos triángulos, y luego Karp–Sipser sobre los vértices libres; usa $n_i - 2T - |M|$ colores.
+- `--color=cliques`: primero cliques disjuntas del complemento con al menos 3 vértices (una de $s$ vértices ahorra $s - 1$ colores), las más grandes primero y, a igual tamaño, las que tocan menos cliques; luego Karp–Sipser sobre los vértices libres. Usa $n_i - \sum (|Q| - 1) - |M|$ colores.
 - `--color=best`: por componente, el que use menos colores de los tres.
 
 Medido en la CI con $p = 4$:
