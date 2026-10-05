@@ -216,3 +216,26 @@ Para no repetir la situación inicial, en la que la tesis prometía cosas que no
 - B. Bollobás, "The chromatic number of random graphs", *Combinatorica*, 8(1), 49–55, 1988.
 - R. L. Graham, "Bounds on multiprocessing timing anomalies", *SIAM J. Appl. Math.*, 17(2), 416–429, 1969 (ya está en la tesis).
 - Para la fusión de bosques en el DSU distribuido: revisar la literatura de componentes conexas distribuidas antes de presentarla como aporte (por ejemplo, el trabajo de Shiloach y Vishkin y sus versiones distribuidas).
+
+## Hacia una publicación: mapa de lo que falta (2026-10-05)
+
+Los cinco puntos que faltan para publicar, situados en los hitos de este documento:
+
+| # | Qué falta | Hito | Estado | Bloqueado por |
+|---|-----------|------|--------|---------------|
+| 1 | Tiempos reales (v1, `--replicate`, v2, OpenMP, híbrido; escalabilidad fuerte y débil) | C | código e instrumentación listos (fases, `VOLUME`, scripts SLURM) | Khipu |
+| 2 | Validar el modelo de **tiempo**: $\alpha$, $\beta$ con `pingpong` y error de predicción de la Ec. (tp) | C | `benchmarks/pingpong` listo; el modelo de **volumen** ya está validado (cociente medido 63.4 y 127.7 frente a $p\,k$ = 64 y 128) | Khipu |
+| 3 | Escala ($n = 10^6$–$10^8$, varios nodos) | B1c + C | v2 ya escala en memoria ($\Theta(n + m/p)$) y la CI verifica su corrección hasta $n = 10^6$; falta que la ruta con raíz lea `.edges` (CSR global) para comparar v1 con v2 a escala | B1c; Khipu para los tiempos |
+| 4 | Grafos reales con varias componentes | B1c | falta un convertidor Matrix Market → `.edges` y una instancia pequeña en CI (verificar el nombre antes de usarla) | — |
+| 5 | Baselines en el mismo hardware: ConnectIt o FastSV (componentes) y ColPack o Kokkos (coloreo) | C (la preparación entra en B1c) | falta un script que los descargue y compile, y adaptadores desde `.edges`; deben compilar en CI con un grafo pequeño | Khipu para los tiempos |
+
+**Orden:** B1c (CSR en la ruta con raíz, `--scatterv`, bitmap, convertidor Matrix Market, preparación de baselines). Después, cuando haya acceso, la campaña de Khipu: tiempos, $\alpha$/$\beta$ y baselines.
+
+**Lo que ya es publicable sin Khipu:**
+
+- volumen exacto $p\,k$ verificado;
+- isoeficiencia de v1 frente a v2;
+- $\chi$ exacto vía el complemento y optimalidad de LDF en componentes densas;
+- reproducibilidad: CI, fuzzing de v1 frente a v2 y corrección hasta $n = 10^6$.
+
+**Visualización.** El visualizador GLUT del generador no aporta a la investigación. Lo único que vale la pena es un diagrama de Gantt **real** por proceso y fase, generado desde `PhaseTimes`. Requiere tiempos de Khipu, así que queda preparado y no se dibuja con tiempos de la CI.
