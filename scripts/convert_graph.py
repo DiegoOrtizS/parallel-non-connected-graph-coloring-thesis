@@ -8,7 +8,12 @@
              single-vertex components; SNAP keeps only vertices that appear in an edge) and counts the
              connected components k. Prints "n m k".
   to-mtx:    python3 convert_graph.py to-mtx <input.edges> <output.mtx>
-             Writes a symmetric pattern Matrix Market file (input for baselines such as ColPack).
+             Writes a symmetric pattern Matrix Market file (input for baselines such as ColPack,
+             FastSV and LACC).
+  to-adj:    python3 convert_graph.py to-adj <input.edges> <output.adj>
+             Writes the AdjacencyGraph text format of Ligra and GBBS (input for ConnectIt): a line
+             "AdjacencyGraph", n, 2m, the n offsets and the 2m neighbors (both directions), one
+             value per line.
 
 .edges format: int64 header (n, m, k), then m sorted pairs of uint32 (u, v) with u < v, little-endian.
 """
@@ -105,11 +110,37 @@ def to_mtx(source, target):
             file.write(f"{flat[i + 1] + 1} {flat[i] + 1}\n")
 
 
+def to_adj(source, target):
+    with open(source, "rb") as file:
+        n, m, _ = struct.unpack("<qqq", file.read(24))
+        flat = array("I")
+        flat.fromfile(file, 2 * m)
+    degree = [0] * n
+    for x in flat:
+        degree[x] += 1
+    offsets = [0] * (n + 1)
+    for v in range(n):
+        offsets[v + 1] = offsets[v] + degree[v]
+    neighbors = array("I", bytes(4 * 2 * m))
+    position = offsets[:n]
+    for i in range(0, 2 * m, 2):
+        u, v = flat[i], flat[i + 1]
+        neighbors[position[u]] = v
+        position[u] += 1
+        neighbors[position[v]] = u
+        position[v] += 1
+    with open(target, "w") as file:
+        file.write(f"AdjacencyGraph\n{n}\n{2 * m}\n")
+        file.write("\n".join(map(str, offsets[:n])) + "\n")
+        file.write("\n".join(map(str, neighbors)) + "\n")
+
+
 def main():
-    if len(sys.argv) != 4 or sys.argv[1] not in ("to-edges", "to-mtx"):
+    commands = {"to-edges": to_edges, "to-mtx": to_mtx, "to-adj": to_adj}
+    if len(sys.argv) != 4 or sys.argv[1] not in commands:
         print(__doc__)
         return 1
-    (to_edges if sys.argv[1] == "to-edges" else to_mtx)(sys.argv[2], sys.argv[3])
+    commands[sys.argv[1]](sys.argv[2], sys.argv[3])
     return 0
 
 

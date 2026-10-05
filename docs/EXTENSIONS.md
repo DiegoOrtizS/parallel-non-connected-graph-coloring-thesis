@@ -246,6 +246,6 @@ Los cinco puntos que faltan para publicar, situados en los hitos de este documen
 |---|--------|
 | 3 | Ruta con raíz sobre `.edges` hecha (`mpi_v2 --root`, bloques en mapa de bits o lista de aristas, `--scatterv`). v1 y v2 ya se pueden comparar a escala; faltan los tiempos (Khipu). |
 | 4 | Convertidor hecho; grafo real SNAP ca-GrQc en CI: $\chi = \omega = 44$, LDF óptimo, mismos colores en todas las distribuciones. |
-| 5 | ColPack integrado (coincide con nuestros LDF y First-Fit en G1). Falta ConnectIt/GBBS o FastSV para la fase de componentes: su compilación es más pesada (Bazel/CombBLAS). Queda para el hito C. |
+| 5 | ColPack integrado (coincide con nuestros LDF y First-Fit en G1). Fase de componentes: el job `components-baselines` compila FastSV y LACC (CombBLAS) y ConnectIt y SDB14 (GBBS) en commits fijados, convierte los grafos con `convert_graph.py to-mtx|to-adj` y comprueba que todos encuentran el mismo k que v2 en G2, G2 Zipf, un grafo permutado de 10^6 vértices y ca-GrQc. Es una verificación cruzada de corrección y el cableado para Khipu: la comparación de tiempos queda para el hito C. |
 
 **Hallazgo:** en ca-GrQc ($\bar d \approx 5.5$, con una componente gigante) la versión sin raíz comunica 232 kB frente a 17 kB de la versión con raíz, con $p = 4$. Es lo que predice $m = \Omega(p\,n\log p)$: la versión sin raíz solo conviene en grafos densos. Esto sostiene el criterio de elección de paradigma del posicionamiento.
