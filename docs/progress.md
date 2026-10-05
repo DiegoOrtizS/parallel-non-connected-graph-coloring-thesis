@@ -25,3 +25,9 @@ Results already valid for the thesis (deterministic, from CI):
 - `mpi_v2 --root` (bitmap / edge blocks, `--scatterv`), `scripts/convert_graph.py`, ColPack baseline.
 - ca-GrQc (SNAP): n = 5242, m = 14484, k = 355; chi = omega = 44, LDF optimal; ColPack agrees.
 - Remaining before Khipu: ConnectIt or FastSV as connectivity baseline.
+
+## Complement representation (PR #7, CI green)
+
+- Blocks: edges / bitmap / complement with 16-bit indices; auto by exact bytes (thresholds 1/16 and 15/16).
+- LDF on the complement (same colors as on G), matching coloring (Karp-Sipser), best of both.
+- G1 / G2, p = 4: complement sends 5.4 kB / 203 kB vs 379 kB / 18.8 MB for the v1 matrix.
