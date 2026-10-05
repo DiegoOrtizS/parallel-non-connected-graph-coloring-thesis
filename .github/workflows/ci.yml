@@ -91,18 +91,26 @@ jobs:
           for d in generator algorithms/mpi algorithms/mpi_v2; do make -s -C src/$d; done
           LOG=$PWD/scripts/results/volume.log
           : > "$LOG"
-          measure() {  # measure n m k
-            (cd src/generator && ./a.out "$1" "$2" "$3" > /dev/null)
-            for p in 4 16; do
-              (cd src/algorithms/mpi && mpirun --oversubscribe -np $p ./a.out "$1" "$2" "$3") >> "$LOG"
-              (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np $p ./a.out "$1" "$2" "$3") >> "$LOG"
+          # tagged <label> <command...>: runs the command and prefixes its VOLUME lines with the graph label
+          tagged() { local label=$1; shift; "$@" | grep '^VOLUME,' | sed "s/^VOLUME,/VOLUME,$label,/" >> "$LOG"; }
+          measure() {  # measure label n m k replicate_ps v_ps
+            local label=$1 n=$2 m=$3 k=$4
+            (cd src/generator && ./a.out "$n" "$m" "$k" > /dev/null)
+            for p in $6; do
+              tagged "$label" bash -c "cd src/algorithms/mpi && mpirun --oversubscribe -np $p ./a.out $n $m $k"
+              tagged "$label" bash -c "cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np $p ./a.out $n $m $k"
             done
-            # Replication needs n^2 words per process: only with p = 4 to stay within the runner's memory.
-            (cd src/algorithms/mpi && mpirun --oversubscribe -np 4 ./a.out "$1" "$2" "$3" --replicate) >> "$LOG"
+            # Replication needs n^2 words per process, so it only runs where it fits in the runner's memory.
+            for p in $5; do
+              tagged "$label" bash -c "cd src/algorithms/mpi && mpirun --oversubscribe -np $p ./a.out $n $m $k --replicate"
+            done
           }
-          measure 1000 30000 16
-          measure 10000 1500000 32
-          { echo "algorithm,n,m,k,p,h,bytes_dsu,bytes_pack,bytes_send,bytes_gather,bytes_total"; grep '^VOLUME,' "$LOG" | cut -d, -f2-; } | tee scripts/results/volume.csv
+          measure G1 1000 30000 16 "2 4 8 16" "2 4 8 16"
+          measure G2 10000 1500000 32 "4" "4 16"
+          # Permuted labels remove the locality of the contiguous layout (the honest case for v2).
+          GRAPH_VARIANT="permute,seed=42" measure G1-permuted 1000 30000 16 "" "4 16"
+          GRAPH_VARIANT="permute,seed=42" measure G2-permuted 10000 1500000 32 "" "4 16"
+          { echo "graph,algorithm,n,m,k,p,h,bytes_dsu,bytes_pack,bytes_send,bytes_gather,bytes_total"; grep '^VOLUME,' "$LOG" | cut -d, -f2-; } | tee scripts/results/volume.csv
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
@@ -110,3 +118,29 @@ jobs:
           name: communication-volume
           path: scripts/results/volume.*
           if-no-files-found: ignore
+
+  correctness-at-scale:
+    # Correctness only (no timings): fuzzing of v2 against v1 on many seeds, and v2 on large
+    # Zipf graphs with permuted labels, generated without the n x n matrix.
+    needs: build-and-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ make libopenmpi-dev openmpi-bin freeglut3-dev libglu1-mesa-dev
+      - name: Fuzz v2 against v1
+        run: bash scripts/fuzz.sh 50
+      - name: v2 on large permuted Zipf graphs
+        run: |
+          check() {  # check n m k p
+            (cd src/generator && GRAPH_VARIANT="zipf=1.0,permute,seed=11" ./a.out "$1" "$2" "$3" --edges-only)
+            out=$(cd src/algorithms/mpi_v2 && GRAPH_VARIANT="zipf=1.0,permute,seed=11" mpirun --oversubscribe -np "$4" ./a.out "$1" "$2" "$3")
+            echo "$out" | grep -E "well colored|Components|^VOLUME"
+            echo "$out" | grep -qx "Components: $3"
+          }
+          check 100000 2000000 64 4
+          check 100000 2000000 64 16
+          check 1000000 10000000 256 16
