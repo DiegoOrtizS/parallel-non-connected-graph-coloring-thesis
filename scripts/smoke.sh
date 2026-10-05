@@ -25,7 +25,7 @@ run() {  # run <dir> <command...>
     (cd "$SRC/$dir" && "$@") | tee -a "$LOG"
 }
 
-all_programs() {  # all_programs n m k: 15 colorings (3 baselines, 2 OpenMP, 3 MPI, 2 hybrid, 2 root-free v2, 3 v2 with root)
+all_programs() {  # all_programs n m k: 18 colorings (3 baselines, 2 OpenMP, 3 MPI, 2 hybrid, 2 root-free v2, 6 v2 with root)
     run generator ./a.out "$1" "$2" "$3"
     run algorithms/sequential ./a.out "$1" "$2" "$3"
     OMP_NUM_THREADS=2 run algorithms/omp ./a.out "$1" "$2" "$3" 2 rsoc
@@ -40,6 +40,9 @@ all_programs() {  # all_programs n m k: 15 colorings (3 baselines, 2 OpenMP, 3 M
     OMP_NUM_THREADS=1 run algorithms/mpi_v2 "${MPIRUN[@]}" -np 4 ./a.out "$1" "$2" "$3" --root
     OMP_NUM_THREADS=1 run algorithms/mpi_v2 "${MPIRUN[@]}" -np 3 ./a.out "$1" "$2" "$3" --root --blocks=bitmap --scatterv
     OMP_NUM_THREADS=1 run algorithms/mpi_v2 "${MPIRUN[@]}" -np 3 ./a.out "$1" "$2" "$3" --root --blocks=edges
+    OMP_NUM_THREADS=1 run algorithms/mpi_v2 "${MPIRUN[@]}" -np 3 ./a.out "$1" "$2" "$3" --root --blocks=complement
+    OMP_NUM_THREADS=1 run algorithms/mpi_v2 "${MPIRUN[@]}" -np 3 ./a.out "$1" "$2" "$3" --root --blocks=complement --color=matching
+    OMP_NUM_THREADS=1 run algorithms/mpi_v2 "${MPIRUN[@]}" -np 3 ./a.out "$1" "$2" "$3" --root --blocks=complement --color=best
 }
 
 # v1 graph: equal components, contiguous labels
@@ -63,21 +66,21 @@ GRAPH_VARIANT="$ZIPF" same_instance "$N" "$M" 8 " zipf1 perm7"
 # Root-free v2 must find the k components and color every vertex exactly as the v1 LDF, for any p.
 for k in "$K" 8; do
     ldf=$(awk -F, -v k="$k" '$1 == "CSV" && $2 == "seq-ldf-components" && $5 == k {print $14}' "$LOG")
-    v2=$(awk -F, -v k="$k" '$1 == "CSV" && $2 ~ /^mpi-v2/ && $5 == k {print $14}' "$LOG" | sort -u)
+    v2=$(awk -F, -v k="$k" '$1 == "CSV" && $2 ~ /^mpi-v2/ && $2 !~ /matching|best/ && $5 == k {print $14}' "$LOG" | sort -u)
     echo "== k=$k: v1 LDF colors $ldf, v2 colors $v2"
     [[ -n "$ldf" && "$v2" == "$ldf" ]]
 done
 components=$(grep -cE "^Components: ($K|8)\$" "$LOG" || true)
-echo "== v2 runs that found the expected number of components: $components/10"
-[[ "$components" -eq 10 ]]
+echo "== v2 runs that found the expected number of components: $components/16"
+[[ "$components" -eq 16 ]]
 
-# per graph: 15 colorings and 15 CSV lines; MPI, hybrid and v2 runs (10 per graph) also print a VOLUME line
+# per graph: 18 colorings and 18 CSV lines; MPI, hybrid and v2 runs (13 per graph) also print a VOLUME line
 colored=$(grep -c "The graph is well colored." "$LOG" || true)
 csv=$(grep -c "^CSV," "$LOG" || true)
 volume=$(grep -c "^VOLUME," "$LOG" || true)
 pingpong=$(grep -c "^PINGPONG," "$LOG" || true)
-echo "== proper colorings: $colored/30, CSV lines: $csv/30, VOLUME lines: $volume/20, ping-pong sizes: $pingpong/13"
-[[ "$colored" -eq 30 && "$csv" -eq 30 && "$volume" -eq 20 && "$pingpong" -eq 13 ]]
+echo "== proper colorings: $colored/36, CSV lines: $csv/36, VOLUME lines: $volume/26, ping-pong sizes: $pingpong/13"
+[[ "$colored" -eq 36 && "$csv" -eq 36 && "$volume" -eq 26 && "$pingpong" -eq 13 ]]
 
 echo "== aggregate"
 bash "$ROOT/scripts/aggregate.sh" "$LOG"
