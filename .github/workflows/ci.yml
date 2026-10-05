@@ -255,15 +255,16 @@ jobs:
   quality-vs-density:
     # Coloring quality across the density of the components (deterministic, no timings): k = 8
     # components of 312 vertices with the same density; colors of LDF, matching and cliques (mpi_v2
-    # on complement blocks, forced so every density goes through the complement methods) and DSatur,
+    # with automatic blocks: bitmap below 15/16, complement above, and the complement methods on
+    # both, since bitmap blocks of density >= 1/2 are complemented at the owner) and DSatur,
     # against the exact chromatic number from the clique packing (CP-SAT, 300 s per component).
     needs: build-and-smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        density: ["0.85", "0.90", "0.93", "0.95", "0.97", "0.98", "0.99", "0.995"]
+        density: ["0.80", "0.85", "0.90", "0.93", "0.95", "0.97", "0.98", "0.99", "0.995"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install toolchain
@@ -283,7 +284,7 @@ jobs:
           LOG=$PWD/scripts/results/density-$D.log
           : > "$LOG"
           for color in ldf matching cliques; do
-            (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np 4 ./a.out $N $M $K --root --blocks=complement --color=$color) | grep -E '^CSV,' | tee -a "$LOG"
+            (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np 4 ./a.out $N $M $K --root --color=$color) | grep -E '^(CSV|BLOCKS),' | tee -a "$LOG"
           done
           .venv/bin/python scripts/coloring_quality.py "src/data/$N $M $K.txt" --exact --time-limit 300 \
             --csv scripts/results/density-$D.csv | tee -a "$LOG"
