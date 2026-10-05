@@ -118,7 +118,7 @@ Para agregar los resultados:
 ```bash
 ./aggregate.sh results/*.log > results/summary.csv
 # Formato que lee la tesis (pgfplots), un archivo por grafo:
-./aggregate.sh --thesis 10000 1500000 32 results/strong-*.log > ../../Tesis_Coloreo_Grafos/data/grafo2.csv
+./aggregate.sh --thesis 10000 1500000 32 results/strong-*.log > ../../Tesis_Coloreo_Grafos/data/graph2.csv
 ```
 
 El tiempo $T_1^*$ de cada grafo es la media de `seq-ldf-components` en `summary.csv`.

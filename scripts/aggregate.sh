@@ -2,12 +2,12 @@
 # Aggregates the raw "CSV,..." lines printed by every program into one row per configuration.
 #
 # Usage: ./aggregate.sh results/*.log > summary.csv
-#        ./aggregate.sh --thesis N M K results/*.log > ../../Tesis_Coloreo_Grafos/data/grafoX.csv
+#        ./aggregate.sh --thesis N M K results/*.log > ../../Tesis_Coloreo_Grafos/data/graphX.csv
 #
 # Raw line:  CSV,algorithm,n,m,k,p,h,t_total,t_dsu,t_pack,t_send,t_color,t_gather,colors
 # Summary:   algorithm,n,m,k,p,h,cores,reps,t,tstd,ci95,t_dsu,t_pack,t_send,t_color,t_gather,colors
 #            (t = mean total time, tstd = sample standard deviation, ci95 = half-width of the 95% CI)
-# --thesis:  paradigma,p,hilos,nucleos,t,tstd  for the graph (N, M, K), the format read by pgfplots.
+# --thesis:  paradigm,p,threads,cores,t,tstd  for the graph (N, M, K), the format read by pgfplots.
 set -euo pipefail
 
 thesis=0
@@ -31,7 +31,7 @@ function tq(df) {
 }
 END {
     if (!thesis) print "algorithm,n,m,k,p,h,cores,reps,t,tstd,ci95,t_dsu,t_pack,t_send,t_color,t_gather,colors"
-    else         print "paradigma,p,hilos,nucleos,t,tstd"
+    else         print "paradigm,p,threads,cores,t,tstd"
     for (i = 1; i <= nkeys; i++) {
         key = order[i]; r = reps[key]
         mean = sum[key] / r
@@ -46,7 +46,7 @@ END {
             for (f = 9; f <= 13; f++) printf ",%.9f", ph[key, f] / r
             printf ",%s\n", colors[key]
         } else if (k[2] == gn && k[3] == gm && k[4] == gk) {
-            name = (k[1] == "mpi-ldf") ? "MPI" : (k[1] == "omp-rsoc") ? "OMP" : (k[1] == "hybrid-rsoc") ? "Hibrido" : (k[1] == "omp-components") ? "OMPComp" : k[1]
+            name = (k[1] == "mpi-ldf") ? "MPI" : (k[1] == "omp-rsoc") ? "OMP" : (k[1] == "hybrid-rsoc") ? "Hybrid" : (k[1] == "omp-components") ? "OMPComp" : k[1]
             if (name ~ /^seq-/) continue
             printf "%s,%d,%d,%d,%.9f,%.9f\n", name, k[5], k[6], cores, mean, sd
         }
