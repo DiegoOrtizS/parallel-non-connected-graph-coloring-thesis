@@ -4,6 +4,7 @@
 #include "../utils/functions/adjacencyListToMatrix.h"
 #include "../utils/functions/combineComponentsToAdjacencyMatrix.h"
 #include "../utils/functions/initializeGraph.h"
+#include "../utils/functions/graphVariant.h"
 #include <GL/glut.h>
 #include <cmath>
 #include <stdexcept>
@@ -65,8 +66,7 @@ void GraphGenerator::generateGraph(lli m, lli nPrime) {
     jngen::config.generateLargeObjects = true;
     this->m = m;
     this->nPrime = nPrime;
-    std::vector<lli> verticesPerComponent = distributeIntegers(n, nPrime);
-    std::vector<lli> edgesPerComponent = distributeIntegers(m, nPrime);
+    auto [verticesPerComponent, edgesPerComponent] = componentSizes(n, m, nPrime, variant);
     std::vector<lli**> components;
     for (lli i = 0; i < nPrime; ++i) {
         jngen::Graph component = jngen::Graph::random(verticesPerComponent[i], edgesPerComponent[i]).connected();
@@ -74,6 +74,19 @@ void GraphGenerator::generateGraph(lli m, lli nPrime) {
         components.push_back(adjMatrix);
     }
     combineComponentsToAdjacencyMatrix(components, verticesPerComponent, graph);
+    for (lli i = 0; i < nPrime; ++i) {
+        for (lli j = 0; j < verticesPerComponent[i]; ++j) {
+            delete[] components[i][j];
+        }
+        delete[] components[i];
+    }
+    if (variant.permute) {
+        permuteVertices(n, graph, variant.seed);
+    }
+}
+
+std::string GraphGenerator::graphName(lli m, lli nPrime) const {
+    return std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime) + variant.tag();
 }
 
 void GraphGenerator::drawGraph() {
@@ -182,12 +195,12 @@ void GraphGenerator::validateGraph() {
 void GraphGenerator::saveGraph(std::string dir) {
     std::cout << "SAVING GRAPH" << std::endl;
     std::ofstream file;
-    std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
+    std::string name = graphName(m, nPrime);
     file.open(dir + "/" + name + ".txt");
     if (!file.is_open()) {
         throw std::invalid_argument("Error: File " + name + ".txt could not be created.");
     }
-    file << name << std::endl;
+    file << n << " " << m << " " << nPrime << std::endl;
     for (lli i = 0; i < n; ++i) {
         file << graph[i][0];
         for (lli j = 1; j < n; ++j) {
@@ -227,8 +240,7 @@ bool GraphGenerator::loadGraph(std::string name, std::string dir) {
 
 void GraphGenerator::loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir) {
     this->n = n;
-    std::string name = std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime);
-    bool isGraphLoaded = loadGraph(name, dir);
+    bool isGraphLoaded = loadGraph(graphName(m, nPrime), dir);
 
     if (!isGraphLoaded) {
         initializeGraph(n, graph);

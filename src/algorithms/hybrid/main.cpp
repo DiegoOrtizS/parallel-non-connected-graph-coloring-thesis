@@ -4,7 +4,7 @@
 #include "../../utils/functions/report.h"
 #include "coloringHybrid.h"
 
-// Usage: mpirun -np P ./a.out n m nPrime threads
+// Usage: mpirun -np P ./a.out n m nPrime threads [--lpt] [--replicate]
 int main(int argc, char** argv) {
     int processId, processSize;
     MPI_Init(&argc, &argv);
@@ -21,6 +21,8 @@ int main(int argc, char** argv) {
     lli m = std::stoll(argv[2]);
     lli nPrime = std::stoll(argv[3]);
     int threads = std::stoi(argv[4]);
+    std::string suffix;
+    DistributionOptions options = parseDistributionOptions(argc, argv, 5, suffix);
 
     // Every process colors with OpenMP, so every process must limit its threads.
     // Setting this only on the root left the others with one thread per core (oversubscription).
@@ -34,7 +36,7 @@ int main(int argc, char** argv) {
     PhaseTimes phases;
     MPI_Barrier(MPI_COMM_WORLD);
     double start = MPI_Wtime();
-    ColoringResult result = coloringHybrid(processId, n, graphGenerator->getGraph(), coloringOMP, &phases);
+    ColoringResult result = coloringHybrid(processId, n, graphGenerator->getGraph(), coloringOMP, &phases, options);
     double stop = MPI_Wtime();
 
     if (processId == 0) {
@@ -42,7 +44,7 @@ int main(int argc, char** argv) {
         isWellColored(result.colors, n, graphGenerator->getGraph(), result.labels);
         std::cout << "Number of colors: " << result.chromaticNumber << std::endl;
         std::cout << "Total time: " << stop - start << " seconds" << std::endl;
-        printCsvLine("hybrid-rsoc", n, m, nPrime, processSize, threads, stop - start, phases, result.chromaticNumber);
+        printCsvLine("hybrid-rsoc" + suffix, n, m, nPrime, processSize, threads, stop - start, phases, result.chromaticNumber);
         delete[] result.colors;
         delete[] result.labels;
     }

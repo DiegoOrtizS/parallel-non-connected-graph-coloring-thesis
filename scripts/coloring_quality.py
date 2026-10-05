@@ -4,8 +4,9 @@
 For each component G_i the color classes are cliques of the complement H_i. Hence:
 
 * If H_i is triangle-free, chi(G_i) = n_i - nu(H_i), where nu is the maximum matching size (exact).
-* If omega(H_i) = 3, a clique cover uses a triangles and b edges with a + b <= nu(H_i), so
-  chi(G_i) >= n_i - nu(H_i) - t(H_i), with t the number of triangles.
+* In general chi(G_i) >= n_i - nu(H_i) - T(H_i), with T the number of triangles of H_i: a cover by
+  cliques of sizes s_j saves sum(s_j - 1) vertices; one edge per clique gives a matching, and the
+  remaining sum(s_j - 2) is at most the number of triangles inside the (disjoint) cliques.
 * Always chi(G_i) >= ceil(n_i / omega(H_i)) and chi(G_i) >= omega(G_i).
 
 Complement bounds are used for dense components (density >= 0.5), where H_i is sparse; sparse
@@ -57,12 +58,11 @@ def component_quality(component):
         triangles = sum(nx.triangles(complement).values()) // 3
         matching = len(nx.max_weight_matching(complement, maxcardinality=True))
         omega_h = clique_number(complement) if complement.number_of_edges() else 1
-        lower = math.ceil(n / omega_h)
+        # Any clique cover saves sum(s - 1) <= nu(H) + T(H) vertices (one edge per clique forms a
+        # matching; the extra s - 2 of a clique are bounded by its own triangles), for any omega(H).
+        lower = max(math.ceil(n / omega_h), n - matching - triangles)
         if omega_h <= 2:
-            lower = max(lower, n - matching)
             upper = min(upper, n - matching)
-        elif omega_h == 3:
-            lower = max(lower, n - matching - triangles)
     else:
         # Sparse component: the complement is dense; use the clique lower bound of G itself.
         lower = clique_number(component)

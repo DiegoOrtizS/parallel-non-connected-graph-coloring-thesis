@@ -6,8 +6,8 @@
 
 // The hybrid algorithm is the MPI component distribution with RSOC (OpenMP) as local coloring.
 // It reuses the MPI implementation instead of keeping a copy of it.
-inline ColoringResult coloringHybrid(const int &processId, const lli &n, lli **graph, ColoringResult (*coloringAlgorithm)(lli, lli**), PhaseTimes *phaseTimes = nullptr) {
-    return coloringMPI(processId, n, graph, coloringAlgorithm, phaseTimes);
+inline ColoringResult coloringHybrid(const int &processId, const lli &n, lli **graph, ColoringResult (*coloringAlgorithm)(lli, lli**), PhaseTimes *phaseTimes = nullptr, const DistributionOptions &options = DistributionOptions()) {
+    return coloringMPI(processId, n, graph, coloringAlgorithm, phaseTimes, options);
 }
 
 #endif // COLORING_HYBRID_H
