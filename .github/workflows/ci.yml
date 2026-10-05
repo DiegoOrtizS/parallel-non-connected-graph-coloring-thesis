@@ -362,17 +362,17 @@ jobs:
           DIR=$PWD/scripts/results/baselines
           OUT=$DIR/components.csv
           echo "graph,expected_k,code,components" > "$OUT"
+          count() {  # count PATTERN COMMAND...: first number after PATTERN in stdout or stderr, or empty
+            local pattern=$1
+            shift
+            "$@" < /dev/null 2>&1 | grep -o "$pattern [0-9]*" | head -1 | grep -o '[0-9]*$' || true
+          }
           while IFS='|' read -r name n m k file; do
-            ours=$(cd src/algorithms/mpi_v2 && GRAPH_FILE="$GITHUB_WORKSPACE/$file" mpirun --oversubscribe -np 4 ./a.out "$n" "$m" "$k" < /dev/null \
-              | grep -o 'Components: [0-9]*' | head -1 | grep -o '[0-9]*$')
-            fastsv=$(mpirun --oversubscribe -np 4 "$COMBBLAS/fastsv" -I mm -M "$DIR/$name.mtx" < /dev/null \
-              | grep -o 'Number of components: [0-9]*' | head -1 | grep -o '[0-9]*$')
-            lacc=$(mpirun --oversubscribe -np 4 "$COMBBLAS/lacc" -I mm -M "$DIR/$name.mtx" < /dev/null \
-              | grep -o 'Number of clusters: [0-9]*' | head -1 | grep -o '[0-9]*$')
-            sdb=$("$GBBS/WorkEfficientSDB14/Connectivity_main" -s -stats -rounds 1 "$DIR/$name.adj" < /dev/null \
-              | grep -o 'n_cc = [0-9]*' | head -1 | grep -o '[0-9]*$')
-            connectit=$("$GBBS/ConnectIt/mains/unite_rem_cas_kout" -s -check -rounds 1 "$DIR/$name.adj" < /dev/null \
-              | grep -o 'correctness check: [0-9]*' | head -1 | grep -o '[0-9]*$')
+            ours=$(cd src/algorithms/mpi_v2 && count 'Components:' env GRAPH_FILE="$GITHUB_WORKSPACE/$file" mpirun --oversubscribe -np 4 ./a.out "$n" "$m" "$k")
+            fastsv=$(count 'Number of components:' mpirun --oversubscribe -np 4 "$COMBBLAS/fastsv" -I mm -M "$DIR/$name.mtx")
+            lacc=$(count 'Number of clusters:' mpirun --oversubscribe -np 4 "$COMBBLAS/lacc" -I mm -M "$DIR/$name.mtx")
+            sdb=$(count 'n_cc =' "$GBBS/WorkEfficientSDB14/Connectivity_main" -s -stats -rounds 1 "$DIR/$name.adj")
+            connectit=$(count 'correctness check:' "$GBBS/ConnectIt/mains/unite_rem_cas_kout" -s -check -rounds 1 "$DIR/$name.adj")
             for row in "mpi-v2,$ours" "fastsv,$fastsv" "lacc,$lacc" "gbbs-sdb14,$sdb" "connectit-check,$connectit"; do
               echo "$name,$k,$row" | tee -a "$OUT"
             done
