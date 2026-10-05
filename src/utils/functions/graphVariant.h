@@ -20,7 +20,8 @@
 //   GRAPH_VARIANT="zipf=1.2,permute,seed=7"
 //     zipf=s   component sizes proportional to (i+1)^(-s): one giant component and many small ones
 //     permute  random relabeling of the vertices, so components are not contiguous ranges
-//     seed=x   seed of the relabeling (default 42)
+//     seed=x   seed of the generator and of the relabeling (default 42; every run with the same
+//              parameters and seed produces the same graph)
 struct GraphVariant {
     double zipf = 0.0;
     bool permute = false;
@@ -58,6 +59,8 @@ struct GraphVariant {
         }
         if (permute) {
             result += " perm" + std::to_string(seed);
+        } else if (seed != 42) {
+            result += " seed" + std::to_string(seed);
         }
         return result;
     }

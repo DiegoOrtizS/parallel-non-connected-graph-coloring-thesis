@@ -70,6 +70,9 @@ void GraphGenerator::setChromaticNumber(lli chromaticNumber) {
 // so the two formats always describe the same graph.
 std::vector<Edge> generateEdgeList(lli n, lli m, lli nPrime, const GraphVariant &variant) {
     jngen::config.generateLargeObjects = true;
+    // jngen seeds itself from std::random_device by default, so every run produced a different
+    // instance. A fixed seed makes graphs reproducible across runs, programs and machines.
+    jngen::rnd.seed(variant.seed);
     auto [verticesPerComponent, edgesPerComponent] = componentSizes(n, m, nPrime, variant);
     std::vector<Edge> edges;
     edges.reserve(m);
