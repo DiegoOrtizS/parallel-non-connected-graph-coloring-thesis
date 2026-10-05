@@ -14,8 +14,14 @@ Results already valid for the thesis (deterministic, from CI):
 - Communication volume, p = 4: replication / components = 63.4 (G1) and 127.7 (G2), matching the model p*k.
 - v2 sends about half of v1 on dense components.
 
-## Next
+## Next (after B1c, PR #6)
 
 1. Milestone B1c: `--scatterv`, and bitmap blocks in the root-based path.
 2. Milestone C (needs Khipu): timing campaigns for v1, replicate, v2; ping-pong for alpha and beta; validation of the time model.
 3. Out of scope until Khipu or a newer MPI is available: MPI 4 partitioned communication (`MPI_Psend_init` is missing in the Open MPI 4.1 of ubuntu-latest), Kokkos/GPU.
+
+## B1c done (PR #6, CI green)
+
+- `mpi_v2 --root` (bitmap / edge blocks, `--scatterv`), `scripts/convert_graph.py`, ColPack baseline.
+- ca-GrQc (SNAP): n = 5242, m = 14484, k = 355; chi = omega = 44, LDF optimal; ColPack agrees.
+- Remaining before Khipu: ConnectIt or FastSV as connectivity baseline.
