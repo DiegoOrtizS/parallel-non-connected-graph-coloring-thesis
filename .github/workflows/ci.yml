@@ -119,7 +119,7 @@ jobs:
             for blocks in auto bitmap edges complement; do
               (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np 4 ./a.out "$1" "$2" "$3" --root --blocks=$blocks) | grep -E '^(CSV|VOLUME|BLOCKS),' >> "$LOG"
             done
-            for color in matching best; do
+            for color in matching cliques best; do
               (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np 4 ./a.out "$1" "$2" "$3" --root --blocks=complement --color=$color) | grep -E '^(CSV|BLOCKS),' >> "$LOG"
             done
           }
