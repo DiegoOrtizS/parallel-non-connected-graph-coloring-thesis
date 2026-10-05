@@ -60,14 +60,14 @@ Severidad:
 - **Variante `omp-components`**: DSU + LDF por componente con hilos. Aísla el efecto del paradigma de la diferencia de trabajo $n^2$ frente a $\sum n_i^2$ entre RSOC sobre el grafo completo y los algoritmos por componentes.
 - **Scripts** `scripts/strong.slurm`, `scripts/weak.slurm` y `scripts/aggregate.sh`. El agregador calcula media, desviación estándar e IC del 95 % y exporta el formato que lee la tesis. Se probó con un log sintético.
 
-## Pendiente (no aplicado a propósito)
+## Pendiente (hito B de `docs/EXTENSIONS.md`)
 
-Estos cambios alterarían el algoritmo descrito en la tesis. Quedan como trabajo futuro (capítulo de trabajos futuros):
+Estos cambios alteran el algoritmo descrito en la tesis. Se implementan detrás de un flag, con v1 por defecto:
 
 - Reemplazar los `MPI_Send` secuenciales por `MPI_Scatterv`.
 - Empaquetar la matriz en bits en lugar de enteros de 64 bits.
 - Paralelizar o distribuir el DSU.
 - Usar representación CSR en lugar de matriz de adyacencia.
-- Asignar componentes con la regla LPT cuando sus tamaños sean heterogéneos.
+- ~~Asignar componentes con la regla LPT cuando sus tamaños sean heterogéneos.~~ Hecho (hito A): `--lpt`.
 - Quitar la dependencia de OpenGL/GLUT de los programas de medición (por ejemplo, con un `-DNO_GLUT` que excluya el dibujo).
 - `GraphGenerator::setColorIndex` y `drawGraph` usan `colorIndex` de tamaño 0 cuando el grafo se carga desde disco. Solo afecta al dibujo, no a las mediciones.

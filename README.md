@@ -123,18 +123,35 @@ Para agregar los resultados:
 
 El tiempo $T_1^*$ de cada grafo es la media de `seq-ldf-components` en `summary.csv`.
 
-## Prueba de humo recomendada
+## Opciones v2 (desactivadas por defecto)
 
-Antes de lanzar una campaña completa, conviene ejecutar un grafo pequeño y comprobar que los cinco programas imprimen `The graph is well colored.` y el mismo número de componentes:
+La versión analizada en la tesis (v1) es el comportamiento por defecto. Las extensiones de `docs/EXTENSIONS.md` se activan explícitamente:
+
+| Opción | Dónde | Efecto |
+|--------|-------|--------|
+| `--lpt` | `mpi`, `hybrid` | asigna componentes con *Longest Processing Time* sobre el costo estimado $n_i^2$, en lugar de bloques contiguos |
+| `--replicate` | `mpi`, `hybrid` | línea base de la hipótesis H1: `MPI_Bcast` de la matriz completa y extracción local de los bloques |
+| `GRAPH_VARIANT="zipf=s,permute,seed=x"` | todos los programas | genera o carga un grafo con tamaños de componente Zipf y etiquetas permutadas; el archivo lleva el sufijo de la variante |
+| `benchmarks/pingpong` | `mpirun -np 2 ./a.out [max_log2_palabras] [repeticiones]` | mide la latencia $\alpha$ y el costo por palabra $\beta$ del modelo de comunicación |
+
+El nombre del algoritmo en el CSV refleja las opciones (por ejemplo, `mpi-ldf-lpt-replicate`).
+
+## Calidad del coloreo
+
+`scripts/coloring_quality.py` (requiere `networkx`) compara LDF y DSatur con cotas del número cromático por componente. En las componentes densas usa el emparejamiento máximo y los triángulos del grafo complemento, y da $\chi$ exacto cuando el complemento no tiene triángulos. La CI lo ejecuta sobre los grafos G1, G2 y G3 de la tesis (job `coloring-quality`, artefactos `quality-*`).
+
+## Atajos
 
 ```bash
-mkdir -p src/data
-cd src/generator && make && ./a.out 200 2000 4
-cd ../algorithms/sequential && make && ./a.out 200 2000 4
-cd ../omp && make && ./a.out 200 2000 4 4 rsoc && ./a.out 200 2000 4 4 components
-cd ../mpi && make && mpirun -np 4 ./a.out 200 2000 4
-cd ../hybrid && make && OMP_NUM_THREADS=2 mpirun -np 2 ./a.out 200 2000 4 2
+make build      # compila todo
+make smoke      # lo mismo que la CI: todos los programas y variantes sobre grafos pequeños
+make quality GRAPH="src/data/1000 30000 16.txt"
+make results LOGS="scripts/results/strong-*.log" N=10000 M=1500000 K=32 OUT=../Tesis_Coloreo_Grafos/data/graph2.csv
 ```
+
+## Prueba de humo
+
+`bash scripts/smoke.sh` (o `make smoke`) compila los programas y ejecuta todas las variantes sobre un grafo v1 y otro Zipf con etiquetas permutadas. Falla si algún coloreo no es propio o falta una línea CSV. Conviene correrla en Khipu antes de cada campaña.
 
 ## Revisión del código
 

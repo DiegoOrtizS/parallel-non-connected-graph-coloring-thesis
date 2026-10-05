@@ -1,13 +1,18 @@
 # Progress
 
-## State (2026-10-04)
+## State (2026-10-05)
 
-- Branch `fix/experiments`: measurement bugs fixed, per-phase instrumentation, three sequential baselines, `omp-components`, SLURM scripts, aggregator. See `CODE_REVIEW.md`.
-- CI added (`.github/workflows/ci.yml` + `scripts/smoke.sh`); first runs pending.
-- `docs/EXTENSIONS.md`: v2 design approved by Diego (order A, then B, then C).
+- PR #2 (`fix/experiments`, draft): measurement fixes, per-phase instrumentation, CI green.
+- Milestone A done in code, CI green:
+  - generator variants (`GRAPH_VARIANT`: Zipf sizes, permuted labels),
+  - `--lpt` and `--replicate` in MPI and hybrid,
+  - ping-pong benchmark,
+  - coloring quality with exact chi via complement matching (CI job `coloring-quality` on G1, G2, G3),
+  - top-level `Makefile` (`build`, `smoke`, `quality`, `results`).
+- First real result: chi(G1) = 53 exactly and LDF is optimal on G1; chi(G2) in [105, 150].
 
 ## Next
 
-1. CI green on `fix/experiments`.
-2. Milestone A: label permutation and Zipf sizes in the generator, LPT, `--replicate`, ping-pong, DSatur and exact chromatic number via complement matching, `make results`.
-3. Diego requests Khipu access; then the v1 campaign.
+1. Diego requests Khipu access; run the v1 campaign plus `--replicate` (H1) and ping-pong (alpha, beta).
+2. Milestone B: edge-list format + CSR, density-based block representation, root-free distributed DSU (review SiskinCC/RobinCC first), MPI 4 partitioned communication behind a flag.
+3. After the campaign: validate the cost model and write the "Redesign" subsection of the thesis.
