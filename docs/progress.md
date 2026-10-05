@@ -31,3 +31,9 @@ Results already valid for the thesis (deterministic, from CI):
 - Blocks: edges / bitmap / complement with 16-bit indices; auto by exact bytes (thresholds 1/16 and 15/16).
 - LDF on the complement (same colors as on G), matching coloring (Karp-Sipser), best of both.
 - G1 / G2, p = 4: complement sends 5.4 kB / 203 kB vs 379 kB / 18.8 MB for the v1 matrix.
+
+## Exact chromatic number, clique coloring and load balance (PRs #8, #9, CI green)
+
+- coloring_quality.py --exact: clique packing on the complement with CP-SAT; chi(G1) = 52, chi(G2) = 128 (32/32 optimal, < 1.4 s each).
+- --color=cliques: triangles of the complement, then Karp-Sipser; G2: 132 colors vs LDF 154.
+- load_balance.py: speedup ceiling W / w_max; Zipf s = 1: 1.60, ca-GrQc: 1.12 (CSR); LPT reaches min(p, W / w_max).

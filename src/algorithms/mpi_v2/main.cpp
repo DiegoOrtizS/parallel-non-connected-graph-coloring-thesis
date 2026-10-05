@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -32,7 +33,8 @@
 //   send   MPI_Send per process, or one MPI_Scatterv with --scatterv
 //   color  complement blocks are colored on the complement, never expanded:
 //          --color=ldf (default) same colors as LDF on G; --color=matching coloring from a maximal
-//          matching of the complement; --color=best the fewer colors of the two per component
+//          matching of the complement; --color=cliques disjoint triangles of the complement, then
+//          a matching of the rest; --color=best the fewest colors of the three per component
 //
 // Both modes then build a CSR of each process's components, color it with greedy Largest-Degree-First
 // in the same vertex order as the v1 program (so every version assigns the same colors), gather the
@@ -322,13 +324,15 @@ std::vector<uint32_t> largestDegreeFirstComplement(uint32_t size, const std::vec
     return colors;
 }
 
-// Coloring from a maximal matching of the complement H (Karp-Sipser: degree-1 vertices first, then
-// the vertex of smallest remaining degree). Each matched pair is non-adjacent in G and shares a
-// color; unmatched vertices get their own. Uses n - |M| colors, at most n - nu(H)/2.
-std::vector<uint32_t> matchingColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
-    std::vector<uint32_t> mate(size, UINT32_MAX), degree(size), colors(size, 0);
+// Karp-Sipser maximal matching of the complement H on the vertices not yet taken: degree-1 vertices
+// first, then the vertex of smallest remaining degree, matched to its free neighbor of smallest
+// degree. Marks the matched vertices as taken and returns the matched pairs.
+std::vector<std::vector<uint32_t>> karpSipserMatching(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets, std::vector<char> &taken) {
+    std::vector<uint32_t> degree(size, 0);
     for (uint32_t v = 0; v < size; v++) {
-        degree[v] = offsets[v + 1] - offsets[v];
+        for (uint32_t i = offsets[v]; i < offsets[v + 1] && !taken[v]; i++) {
+            degree[v] += !taken[targets[i]] && targets[i] != v;
+        }
     }
     using Entry = std::pair<uint32_t, uint32_t>;
     std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> queue;
@@ -337,44 +341,108 @@ std::vector<uint32_t> matchingColoringComplement(uint32_t size, const std::vecto
             queue.push({degree[v], v});
         }
     }
+    std::vector<std::vector<uint32_t>> pairs;
     while (!queue.empty()) {
         auto [d, v] = queue.top();
         queue.pop();
-        if (mate[v] != UINT32_MAX || d != degree[v] || d == 0) {
+        if (taken[v] || d != degree[v] || d == 0) {
             continue;
         }
         uint32_t partner = UINT32_MAX;
         for (uint32_t i = offsets[v]; i < offsets[v + 1]; i++) {
             uint32_t u = targets[i];
-            if (mate[u] == UINT32_MAX && u != v && (partner == UINT32_MAX || degree[u] < degree[partner])) {
+            if (!taken[u] && u != v && (partner == UINT32_MAX || degree[u] < degree[partner])) {
                 partner = u;
             }
         }
         if (partner == UINT32_MAX) {
             continue;
         }
-        mate[v] = partner;
-        mate[partner] = v;
+        taken[v] = taken[partner] = 1;
+        pairs.push_back({v, partner});
         for (uint32_t w : {v, partner}) {
             for (uint32_t i = offsets[w]; i < offsets[w + 1]; i++) {
                 uint32_t u = targets[i];
-                if (mate[u] == UINT32_MAX && degree[u] > 0) {
+                if (!taken[u] && degree[u] > 0) {
                     degree[u]--;
                     queue.push({degree[u], u});
                 }
             }
         }
     }
+    return pairs;
+}
+
+// Colors from disjoint cliques of the complement H (independent sets of G): each class gets one
+// color and every other vertex its own, numbered by smallest vertex. Uses n - sum(|Q| - 1) colors.
+std::vector<uint32_t> colorsFromClasses(uint32_t size, const std::vector<std::vector<uint32_t>> &classes) {
+    std::vector<uint32_t> classOf(size, UINT32_MAX), colors(size, 0);
+    for (uint32_t c = 0; c < classes.size(); c++) {
+        for (uint32_t v : classes[c]) {
+            classOf[v] = c;
+        }
+    }
     uint32_t next = 0;
     for (uint32_t v = 0; v < size; v++) {
-        if (colors[v] == 0) {
-            colors[v] = ++next;
-            if (mate[v] != UINT32_MAX) {
-                colors[mate[v]] = next;
+        if (colors[v] != 0) {
+            continue;
+        }
+        colors[v] = ++next;
+        if (classOf[v] != UINT32_MAX) {
+            for (uint32_t u : classes[classOf[v]]) {
+                colors[u] = next;
             }
         }
     }
     return colors;
+}
+
+// Coloring from a maximal matching of H (Karp-Sipser): each matched pair is non-adjacent in G and
+// shares a color. Uses n - |M| colors, at most n - nu(H)/2.
+std::vector<uint32_t> matchingColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
+    std::vector<char> taken(size, 0);
+    return colorsFromClasses(size, karpSipserMatching(size, offsets, targets, taken));
+}
+
+// Coloring from triangles and a matching of H. A triangle of H is an independent set of 3 vertices
+// of G and saves two colors (two per three vertices, against one per two for a matched pair), so
+// vertex-disjoint triangles are taken first, greedily, those whose vertices lie in the fewest
+// triangles first; then a Karp-Sipser matching of the vertices left. Uses n - 2T - |M| colors.
+// Listing the triangles costs O(sum over v of deg_H(v)^2), small because H is sparse.
+std::vector<uint32_t> cliqueColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
+    std::vector<std::array<uint32_t, 3>> triangles;
+    std::vector<uint32_t> mark(size, UINT32_MAX), inTriangles(size, 0);
+    for (uint32_t u = 0; u < size; u++) {
+        for (uint32_t i = offsets[u]; i < offsets[u + 1]; i++) {
+            mark[targets[i]] = u;
+        }
+        for (uint32_t i = offsets[u]; i < offsets[u + 1]; i++) {
+            uint32_t v = targets[i];
+            for (uint32_t j = offsets[v]; j < offsets[v + 1] && v > u; j++) {
+                uint32_t w = targets[j];
+                if (w > v && mark[w] == u) {
+                    triangles.push_back({u, v, w});
+                    inTriangles[u]++, inTriangles[v]++, inTriangles[w]++;
+                }
+            }
+        }
+    }
+    auto conflicts = [&](const std::array<uint32_t, 3> &t) { return inTriangles[t[0]] + inTriangles[t[1]] + inTriangles[t[2]]; };
+    std::sort(triangles.begin(), triangles.end(), [&](const auto &a, const auto &b) {
+        return conflicts(a) != conflicts(b) ? conflicts(a) < conflicts(b) : a < b;
+    });
+    std::vector<char> taken(size, 0);
+    std::vector<std::vector<uint32_t>> classes;
+    for (const auto &t : triangles) {
+        if (!taken[t[0]] && !taken[t[1]] && !taken[t[2]]) {
+            taken[t[0]] = taken[t[1]] = taken[t[2]] = 1;
+            classes.push_back({t[0], t[1], t[2]});
+        }
+    }
+    for (auto &pair : karpSipserMatching(size, offsets, targets, taken)) {
+        classes.push_back(std::move(pair));
+    }
+    return colorsFromClasses(size, classes);
 }
 
 // Colors one block with the requested method; returns colors in the block's local order.
@@ -393,8 +461,19 @@ std::vector<uint32_t> colorBlock(const Block &block, const std::string &method) 
     if (method == "matching") {
         return matched;
     }
-    // best: per component, the coloring with fewer colors.
-    return *std::max_element(matched.begin(), matched.end()) < *std::max_element(greedy.begin(), greedy.end()) ? matched : greedy;
+    std::vector<uint32_t> packed = cliqueColoringComplement(size, offsets, targets);
+    if (method == "cliques") {
+        return packed;
+    }
+    // best: per component, the coloring with the fewest colors (first of ldf, matching, cliques on ties).
+    auto count = [](const std::vector<uint32_t> &colors) { return colors.empty() ? 0u : *std::max_element(colors.begin(), colors.end()); };
+    const std::vector<uint32_t> *best = &greedy;
+    for (const std::vector<uint32_t> *candidate : {&matched, &packed}) {
+        if (count(*candidate) < count(*best)) {
+            best = candidate;
+        }
+    }
+    return *best;
 }
 
 Options parseOptions(int argc, char **argv, std::string &suffix) {
@@ -412,8 +491,8 @@ Options parseOptions(int argc, char **argv, std::string &suffix) {
             }
         } else if (flag.rfind("--color=", 0) == 0) {
             options.color = flag.substr(8);
-            if (options.color != "ldf" && options.color != "matching" && options.color != "best") {
-                throw std::invalid_argument("--color must be ldf, matching or best");
+            if (options.color != "ldf" && options.color != "matching" && options.color != "cliques" && options.color != "best") {
+                throw std::invalid_argument("--color must be ldf, matching, cliques or best");
             }
         } else {
             throw std::invalid_argument("Unknown option: " + flag);
@@ -436,7 +515,7 @@ Options parseOptions(int argc, char **argv, std::string &suffix) {
 
 }  // namespace
 
-// Usage: mpirun -np P ./a.out n m nPrime [--root [--blocks=auto|bitmap|edges|complement] [--scatterv] [--color=ldf|matching|best]]
+// Usage: mpirun -np P ./a.out n m nPrime [--root [--blocks=auto|bitmap|edges|complement] [--scatterv] [--color=ldf|matching|cliques|best]]
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
     int rank, size;

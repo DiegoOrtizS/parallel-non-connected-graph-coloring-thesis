@@ -187,9 +187,13 @@ Los bloques de complemento se colorean sin expandirlos:
 
 - `--color=ldf` (por defecto): el voraz LDF sobre el complemento, con los mismos colores que sobre $G$ y $O(n_i \log n_i + \bar m_i)$ de trabajo.
 - `--color=matching`: un emparejamiento maximal del complemento (Karp–Sipser); cada par emparejado comparte color, de modo que usa $n_i - |M|$ colores.
-- `--color=best`: por componente, el que use menos colores de los dos.
+- `--color=cliques`: primero triángulos disjuntos del complemento (cada uno ahorra dos colores), empezando por los que tocan menos triángulos, y luego Karp–Sipser sobre los vértices libres; usa $n_i - 2T - |M|$ colores.
+- `--color=best`: por componente, el que use menos colores de los tres.
 
-Medido en la CI con $p = 4$, el complemento envía 70 veces menos que la matriz de v1 en G1 y 93 veces menos en G2.
+Medido en la CI con $p = 4$:
+
+- el complemento envía 70 veces menos que la matriz de v1 en G1 y 93 veces menos en G2;
+- en G2 ($\chi = 128$), LDF usa 154 colores, el emparejamiento 157 y `cliques` 132.
 
 ### Grafos reales y baselines
 
@@ -226,7 +230,24 @@ El generador escribe cada instancia en dos formatos, que describen exactamente e
 
 ## Calidad del coloreo
 
-`scripts/coloring_quality.py` (requiere `networkx`) compara LDF y DSatur con cotas del número cromático por componente. En las componentes densas usa el emparejamiento máximo y los triángulos del grafo complemento, y da $\chi$ exacto cuando el complemento no tiene triángulos. La CI lo ejecuta sobre los grafos G1, G2 y G3 de la tesis (job `coloring-quality`, artefactos `quality-*`).
+`scripts/coloring_quality.py` (requiere `networkx`) compara LDF y DSatur con cotas del número cromático por componente. En las componentes densas usa el emparejamiento máximo y los triángulos del grafo complemento, y da $\chi$ exacto cuando el complemento no tiene triángulos.
+
+Con `--exact` (requiere `ortools`) calcula $\chi$ exacto en las componentes densas: $\chi(G_i) = n_i - \max \sum (|Q| - 1)$ sobre cliques disjuntas $Q$ del complemento, resuelto con CP-SAT.
+
+- Solo se reporta como exacto si CP-SAT demuestra la optimalidad.
+- La cota superior se verifica aparte: las cliques elegidas deben ser conjuntos independientes disjuntos de $G_i$.
+- El problema es NP-difícil en general, así que hay un límite de tiempo (`--time-limit`) y un máximo de $10^5$ cliques por componente.
+
+La CI lo ejecuta con `--exact` sobre los grafos G1, G2 y G3 de la tesis (job `coloring-quality`, artefactos `quality-*`): $\chi(G_1) = 52$ y $\chi(G_2) = 128$.
+
+## Balance de carga
+
+`scripts/load_balance.py` lee archivos `.edges` y, con el trabajo $w_i$ de cada componente, calcula:
+
+- el techo $W / w_{\max}$ del speedup del coloreo por componentes;
+- el speedup de los repartos en bloques contiguos y LPT;
+
+para $w_i = n_i^2$ (v1) y $w_i = n_i + m_i$ (v2). Es un modelo de operaciones, no de tiempo. El job `load-balance` lo aplica a G1, G2, dos variantes Zipf densas de G2 y ca-GrQc. Con Zipf $s = 1$ el techo es 1.60, y en ca-GrQc, 1.12.
 
 ## Atajos
 
