@@ -5,6 +5,9 @@
 #include "../utils/functions/combineComponentsToAdjacencyMatrix.h"
 #include "../utils/functions/initializeGraph.h"
 #include "../utils/functions/graphVariant.h"
+#include "../utils/functions/edgeListIO.h"
+#include <algorithm>
+#include <numeric>
 #include <GL/glut.h>
 #include <cmath>
 #include <stdexcept>
@@ -62,31 +65,60 @@ void GraphGenerator::setChromaticNumber(lli chromaticNumber) {
     this->chromaticNumber = chromaticNumber;
 }
 
-void GraphGenerator::generateGraph(lli m, lli nPrime) {
+// Single source of every instance: components from jngen, placed in consecutive vertex ranges,
+// optionally relabeled. Both the matrix (v1) and the edge file (v2) are built from this list,
+// so the two formats always describe the same graph.
+std::vector<Edge> generateEdgeList(lli n, lli m, lli nPrime, const GraphVariant &variant) {
     jngen::config.generateLargeObjects = true;
-    this->m = m;
-    this->nPrime = nPrime;
+    // jngen seeds itself from std::random_device by default, so every run produced a different
+    // instance. A fixed seed makes graphs reproducible across runs, programs and machines.
+    jngen::rnd.seed(variant.seed);
     auto [verticesPerComponent, edgesPerComponent] = componentSizes(n, m, nPrime, variant);
-    std::vector<lli**> components;
+    std::vector<Edge> edges;
+    edges.reserve(m);
+    lli offset = 0;
     for (lli i = 0; i < nPrime; ++i) {
         jngen::Graph component = jngen::Graph::random(verticesPerComponent[i], edgesPerComponent[i]).connected();
-        lli **adjMatrix = adjacencyListToMatrix(component);
-        components.push_back(adjMatrix);
-    }
-    combineComponentsToAdjacencyMatrix(components, verticesPerComponent, graph);
-    for (lli i = 0; i < nPrime; ++i) {
-        for (lli j = 0; j < verticesPerComponent[i]; ++j) {
-            delete[] components[i][j];
+        for (lli u = 0; u < verticesPerComponent[i]; ++u) {
+            for (lli v : component.edges(u)) {
+                // Keep each edge as (min, max); duplicates from both endpoints are removed below.
+                uint32_t a = static_cast<uint32_t>(offset + u), b = static_cast<uint32_t>(offset + v);
+                edges.push_back({std::min(a, b), std::max(a, b)});
+            }
         }
-        delete[] components[i];
+        offset += verticesPerComponent[i];
     }
     if (variant.permute) {
-        permuteVertices(n, graph, variant.seed);
+        std::vector<uint32_t> permutation(n);
+        std::iota(permutation.begin(), permutation.end(), 0);
+        std::mt19937 generator(variant.seed);
+        std::shuffle(permutation.begin(), permutation.end(), generator);
+        for (Edge &edge : edges) {
+            uint32_t a = permutation[edge.first], b = permutation[edge.second];
+            edge = {std::min(a, b), std::max(a, b)};
+        }
+    }
+    std::sort(edges.begin(), edges.end());
+    edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
+    return edges;
+}
+
+void GraphGenerator::generateGraph(lli m, lli nPrime) {
+    this->m = m;
+    this->nPrime = nPrime;
+    for (const Edge &edge : generateEdgeList(n, m, nPrime, variant)) {
+        graph[edge.first][edge.second] = 1;
+        graph[edge.second][edge.first] = 1;
     }
 }
 
 std::string GraphGenerator::graphName(lli m, lli nPrime) const {
-    return std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(nPrime) + variant.tag();
+    return graphFileName(n, m, nPrime, variant);
+}
+
+void GraphGenerator::saveEdges(std::string dir) {
+    EdgeFileHeader header{n, m, nPrime};
+    writeEdgeList(dir + "/" + graphName(m, nPrime) + ".edges", header, edgesFromMatrix(n, graph));
 }
 
 void GraphGenerator::drawGraph() {

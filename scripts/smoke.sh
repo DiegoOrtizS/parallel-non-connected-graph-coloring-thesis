@@ -42,6 +42,17 @@ GRAPH_VARIANT="zipf=1.0,permute,seed=7" all_programs "$N" "$M" 8
 
 run benchmarks/pingpong "${MPIRUN[@]}" -np 2 ./a.out 12 5
 
+# The edge file derived from the matrix and the one written by --edges-only must be the same instance.
+same_instance() {  # same_instance n m k
+    local name="$1 $2 $3"
+    cp "$SRC/data/$name$4.edges" "$ROOT/scripts/results/from-matrix.edges"
+    (cd "$SRC/generator" && ./a.out "$1" "$2" "$3" --edges-only > /dev/null)
+    cmp "$ROOT/scripts/results/from-matrix.edges" "$SRC/data/$name$4.edges"
+    echo "== same instance in both formats: $name$4"
+}
+same_instance "$N" "$M" "$K" ""
+GRAPH_VARIANT="zipf=1.0,permute,seed=7" same_instance "$N" "$M" 8 " zipf1 perm7"
+
 # per graph: 3 baselines + 2 OpenMP + 3 MPI + 2 hybrid = 10 colorings and 10 CSV lines
 colored=$(grep -c "The graph is well colored." "$LOG" || true)
 csv=$(grep -c "^CSV," "$LOG" || true)
