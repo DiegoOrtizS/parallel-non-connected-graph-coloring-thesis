@@ -165,6 +165,14 @@ $$n + m \;\ge\; K\left(c'\,p\,n\log_2 p + \alpha p^2\right) \quad\Longrightarrow
 
 **Alternativas descartadas.** Un union-find concurrente sin bloqueos en memoria compartida no es implementable de forma confiable sin poder compilar ni probar. La fusión de bosques es simple, determinista y verificable.
 
+**Literatura reciente que hay que revisar antes de implementar** (ver `Tesis_Coloreo_Grafos/docs/literature_update.md`):
+
+- SiskinCC y RobinCC [Koohi Esfahani, 2025] ya resuelven componentes conexas distribuidas sobre el DSU concurrente de Jayanti y Tarjan [2021], optimizando memoria y red. Pueden reemplazar los pasos 2–4.
+- FastSV [2020], LACC [2019] y Contour [2023] son las referencias de escala a comparar.
+- Si alguno de estos algoritmos se adopta, el aporte de la tesis pasa a ser su integración con la distribución por componentes y el análisis de isoeficiencia, no un DSU nuevo.
+
+**Variante con MPI 4.** Con comunicación particionada (`MPI_Psend_init` / `MPI_Pready`), cada hilo de la raíz marca como lista su parte del buffer en cuanto termina de empaquetarla. Así el empaquetado se solapa con el envío y se ataca $T_{\text{pack}} + T_{\text{send}}$ también en la versión v1 con raíz. Open MPI 5 la implementa. Va como flag adicional del hito B.
+
 **Riesgo.** Alto: E/S paralela, `Alltoallv` y fusión de bosques. Requiere CI en verde y una batería de pruebas que compare las componentes con v1 en grafos pequeños.
 
 ---
