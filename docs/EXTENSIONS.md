@@ -239,3 +239,13 @@ Los cinco puntos que faltan para publicar, situados en los hitos de este documen
 - reproducibilidad: CI, fuzzing de v1 frente a v2 y corrección hasta $n = 10^6$.
 
 **Visualización.** El visualizador GLUT del generador no aporta a la investigación. Lo único que vale la pena es un diagrama de Gantt **real** por proceso y fase, generado desde `PhaseTimes`. Requiere tiempos de Khipu, así que queda preparado y no se dibuja con tiempos de la CI.
+
+### Estado tras B1c (2026-10-05, PR #6)
+
+| # | Estado |
+|---|--------|
+| 3 | Ruta con raíz sobre `.edges` hecha (`mpi_v2 --root`, bloques en mapa de bits o lista de aristas, `--scatterv`). v1 y v2 ya se pueden comparar a escala; faltan los tiempos (Khipu). |
+| 4 | Convertidor hecho; grafo real SNAP ca-GrQc en CI: $\chi = \omega = 44$, LDF óptimo, mismos colores en todas las distribuciones. |
+| 5 | ColPack integrado (coincide con nuestros LDF y First-Fit en G1). Falta ConnectIt/GBBS o FastSV para la fase de componentes: su compilación es más pesada (Bazel/CombBLAS). Queda para el hito C. |
+
+**Hallazgo:** en ca-GrQc ($\bar d \approx 5.5$, con una componente gigante) la versión sin raíz comunica 232 kB frente a 17 kB de la versión con raíz, con $p = 4$. Es lo que predice $m = \Omega(p\,n\log p)$: la versión sin raíz solo conviene en grafos densos. Esto sostiene el criterio de elección de paradigma del posicionamiento.

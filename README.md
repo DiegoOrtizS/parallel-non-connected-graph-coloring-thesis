@@ -156,6 +156,34 @@ Funciona en cinco pasos:
 
 Colorea cada vértice igual que el LDF de v1; la prueba de humo lo comprueba para $p = 1$ y $p = 4$. El significado de cada columna de fase en v2 está en `CONTEXT.md`.
 
+
+### Modo con raíz sobre la lista de aristas (`--root`)
+
+Es el algoritmo v1 trasladado a la lista de aristas: la raíz arma el DSU de todas las aristas en $\Theta(n+m)$ y envía cada componente a su dueño. Opciones:
+
+- `--blocks=auto|bitmap|edges`: cómo se codifica cada componente. `bitmap` usa $n_i^2$ bits; `edges` usa una lista de aristas locales; `auto` (por defecto) elige la más pequeña.
+- `--scatterv`: un solo `MPI_Scatterv` en lugar de `MPI_Send` por proceso.
+
+```bash
+mpirun -np 4 ./a.out 1000 30000 16 --root --blocks=bitmap --scatterv
+```
+
+Con cualquier opción, todas las variantes colorean igual que v1.
+
+### Grafos reales y baselines
+
+```bash
+# SNAP o Matrix Market a .edges (imprime "n m k")
+python3 scripts/convert_graph.py to-edges ca-GrQc.txt src/data/real/ca-GrQc.edges
+GRAPH_FILE=$PWD/src/data/real/ca-GrQc.edges mpirun -np 4 src/algorithms/mpi_v2/a.out 5242 14484 355
+# ColPack (coloreo de referencia) en third_party/, más el driver de src/baselines/colpack
+bash scripts/baselines.sh
+python3 scripts/convert_graph.py to-mtx src/data/real/ca-GrQc.edges ca-GrQc.mtx
+src/baselines/colpack/driver ca-GrQc.mtx
+```
+
+El job `real-graph-and-baselines` de la CI hace todo lo anterior con ca-GrQc. Además ejecuta ColPack sobre G1.
+
 ## Volumen de comunicación
 
 Las versiones MPI, híbrida y v2 imprimen además una línea con los bytes entregados a otros procesos en cada fase, sumados sobre todos los procesos:

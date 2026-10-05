@@ -3,3 +3,5 @@
 **/*.h.gch
 src/data/*.txt
 scripts/results/*.log
+third_party/
+src/baselines/colpack/driver

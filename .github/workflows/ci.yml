@@ -144,3 +144,53 @@ jobs:
           check 100000 2000000 64 4
           check 100000 2000000 64 16
           check 1000000 10000000 256 16
+
+  real-graph-and-baselines:
+    # A real disconnected graph (SNAP ca-GrQc) through every v2 distribution, and ColPack as an
+    # external coloring baseline. Colors and component counts only; no timings.
+    needs: build-and-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ make cmake libopenmpi-dev openmpi-bin freeglut3-dev libglu1-mesa-dev python3
+      - name: Real graph through every v2 distribution
+        run: |
+          mkdir -p src/data/real scripts/results
+          make -s -C src/algorithms/mpi_v2
+          curl -sSfL https://snap.stanford.edu/data/ca-GrQc.txt.gz | gunzip > src/data/real/ca-GrQc.txt
+          read -r N M K < <(python3 scripts/convert_graph.py to-edges src/data/real/ca-GrQc.txt src/data/real/ca-GrQc.edges)
+          echo "ca-GrQc: n=$N m=$M k=$K"
+          export GRAPH_FILE=$PWD/src/data/real/ca-GrQc.edges
+          LOG=$PWD/scripts/results/real.log
+          : > "$LOG"
+          cd src/algorithms/mpi_v2
+          for args in "-np 1" "-np 4" "-np 4 --root" "-np 4 --root --blocks=bitmap" "-np 4 --root --blocks=edges --scatterv"; do
+            set -- $args
+            mpirun --oversubscribe "$1" "$2" ./a.out "$N" "$M" "$K" "${@:3}" | tee -a "$LOG"
+          done
+          [[ $(grep -c "Components: $K" "$LOG") -eq 5 ]]
+          [[ $(grep '^CSV,' "$LOG" | cut -d, -f14 | sort -u | wc -l) -eq 1 ]]
+          echo "== ca-GrQc: every distribution finds $K components and the same colors"
+      - name: ColPack baseline
+        run: |
+          bash scripts/baselines.sh
+          mkdir -p src/data
+          make -s -C src/generator && (cd src/generator && ./a.out 1000 30000 16 > /dev/null)
+          python3 scripts/convert_graph.py to-mtx "src/data/1000 30000 16.edges" scripts/results/G1.mtx
+          python3 scripts/convert_graph.py to-mtx src/data/real/ca-GrQc.edges scripts/results/ca-GrQc.mtx
+          for g in G1 ca-GrQc; do
+            src/baselines/colpack/driver scripts/results/$g.mtx | sed "s/^/$g,/" | tee -a scripts/results/colpack.csv
+          done
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-graph-and-baselines
+          path: |
+            scripts/results/real.log
+            scripts/results/colpack.csv
+          if-no-files-found: ignore
