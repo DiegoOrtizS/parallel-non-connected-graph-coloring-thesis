@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ make libopenmpi-dev openmpi-bin freeglut3-dev libglu1-mesa-dev
+      - name: Build and smoke test
+        run: bash scripts/smoke.sh 200 2000 4
+      - name: Upload smoke log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-log
+          path: scripts/results/smoke.log
+          if-no-files-found: ignore
+
+  coloring-quality:
+    # Colors used by the heuristics versus bounds on the chromatic number, on the thesis graphs.
+    # Colors are deterministic, so these results are valid data (CI timings are not).
+    needs: build-and-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        graph:
+          - { name: G1, n: 1000, m: 30000, k: 16 }
+          - { name: G2, n: 10000, m: 1500000, k: 32 }
+          - { name: G3, n: 10000, m: 100000, k: 16 }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ make libopenmpi-dev openmpi-bin freeglut3-dev libglu1-mesa-dev python3-venv
+          python3 -m venv .venv && .venv/bin/pip install --quiet networkx
+      - name: Generate graph and run the sequential baselines
+        run: |
+          mkdir -p src/data scripts/results
+          make -s -C src/generator && make -s -C src/algorithms/sequential
+          (cd src/generator && ./a.out ${{ matrix.graph.n }} ${{ matrix.graph.m }} ${{ matrix.graph.k }})
+          (cd src/algorithms/sequential && ./a.out ${{ matrix.graph.n }} ${{ matrix.graph.m }} ${{ matrix.graph.k }}) | tee scripts/results/sequential-${{ matrix.graph.name }}.log
+      - name: Coloring quality
+        run: |
+          .venv/bin/python scripts/coloring_quality.py "src/data/${{ matrix.graph.n }} ${{ matrix.graph.m }} ${{ matrix.graph.k }}.txt" \
+            --csv scripts/results/quality-${{ matrix.graph.name }}.csv | tee scripts/results/quality-${{ matrix.graph.name }}.txt
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-${{ matrix.graph.name }}
+          path: |
+            scripts/results/quality-${{ matrix.graph.name }}.*
+            scripts/results/sequential-${{ matrix.graph.name }}.log
+          if-no-files-found: ignore

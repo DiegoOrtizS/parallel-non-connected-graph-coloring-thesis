@@ -1,0 +1,19 @@
+# Domain language
+
+| Term | Meaning |
+|------|---------|
+| component ($V_i$, $n_i$, $m_i$) | connected component of the input graph: vertex set, vertex count, edge count |
+| $k$ | number of components |
+| diagonal block ($A_i$) | adjacency submatrix of one component; after reordering vertices by component the matrix is block diagonal |
+| labels | original vertex ids of a block, sent with it so colors can be mapped back |
+| root | MPI rank 0: holds the whole graph, runs DSU, packs and sends blocks, gathers colors |
+| $\mathcal{C}_r$ | components assigned to rank $r$ (contiguous blocks in v1, LPT in v2) |
+| $w_r$ | words sent to rank $r$: $\sum_{i \in \mathcal{C}_r} (1 + n_i + n_i^2)$ in v1 |
+| phases | `dsu`, `pack`, `send`, `color`, `gather`: the terms of the thesis time model, separated by barriers |
+| $p$, $h$, $c$ | MPI processes, OpenMP threads per process, total cores $c = p \cdot h$ |
+| $T_1^*$ | sequential reference time: `seq-ldf-components` (same work as the parallel versions) |
+| RSOC | Reduced Synchronization Optimistic Coloring (Rokos, Gorman, Kelly 2015): the OpenMP baseline |
+| LDF | greedy coloring in Largest-Degree-First order: the local coloring of the MPI version |
+| colors ($\hat{c}$) | colors used by a heuristic; an upper bound of the chromatic number $\chi$ |
+| v1 / v2 | thesis version as analyzed / redesigned version from `docs/EXTENSIONS.md` |
+| provisional data | values read off the old plots; must never be presented as measurements |

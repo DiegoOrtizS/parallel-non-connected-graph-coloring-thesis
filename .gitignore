@@ -2,3 +2,4 @@
 **/*.o
 **/*.h.gch
 src/data/*.txt
+scripts/results/*.log

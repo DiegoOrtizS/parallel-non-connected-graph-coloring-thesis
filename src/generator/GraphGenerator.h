@@ -1,8 +1,13 @@
+#ifndef GRAPH_GENERATOR_H
+#define GRAPH_GENERATOR_H
+
+#include <string>
 #include <GL/glut.h>
 #include <vector>
 #include <array>
 
 #include "../utils/graphs/Graph.h"
+#include "../utils/functions/graphVariant.h"
 
 class GraphGenerator : public mesquo::Graph
 {
@@ -10,6 +15,7 @@ class GraphGenerator : public mesquo::Graph
         static GraphGenerator* currentInstance;
         lli m;
         lli nPrime;
+        GraphVariant variant = GraphVariant::fromEnv();
         std::vector<std::array<float, 3>> colors;
         lli *colorIndex;
         lli chromaticNumber;
@@ -18,6 +24,7 @@ class GraphGenerator : public mesquo::Graph
         static void staticDrawGraph() {
             currentInstance->drawGraph();
         }
+    public:
         void setupDrawGraph() {
             currentInstance = this;
             glutDisplayFunc(GraphGenerator::staticDrawGraph);
@@ -31,9 +38,12 @@ class GraphGenerator : public mesquo::Graph
         void setColorIndex(lli *colorIndex, lli *colorLabels = nullptr);
         void setChromaticNumber(lli chromaticNumber);
         void generateGraph(lli m, lli nPrime);
+        std::string graphName(lli m, lli nPrime) const;
         void drawGraph();
         void validateGraph();
         void saveGraph(std::string dir = "../../data");
         bool loadGraph(std::string name, std::string dir = "../../data");
         void loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir = "../../data");
 };
+
+#endif // GRAPH_GENERATOR_H

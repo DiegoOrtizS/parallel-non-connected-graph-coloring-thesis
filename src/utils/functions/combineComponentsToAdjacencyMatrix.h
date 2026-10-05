@@ -3,7 +3,7 @@
 
 #include <vector>
 
-void combineComponentsToAdjacencyMatrix(std::vector<lli**> components, 
+inline void combineComponentsToAdjacencyMatrix(std::vector<lli**> components, 
                             std::vector<lli> verticesPerComponent, lli **&graph) {
     lli accumulatedVertices = 0;
     for (lli i = 0; i < components.size(); ++i) {

@@ -5,9 +5,12 @@
 #include <algorithm>
 #include "../../utils/structs/ColoringResult.h"
 
+// Greedy coloring in Largest-Degree-First order on a dense submatrix.
+// Picking the color with a "used" array keeps the whole routine in O(n^2):
+// a vertex of degree d always has a free color in {1, ..., d + 1}.
 ColoringResult largestDegreeFirst(lli submatrixSize, lli** submatrix)
 {
-    lli* colors = new lli[submatrixSize];
+    lli* colors = new lli[submatrixSize]();
     std::vector<std::pair<lli, lli>> degrees;
     for (lli i = 0; i < submatrixSize; i++) {
         lli degree = 0;
@@ -22,20 +25,18 @@ ColoringResult largestDegreeFirst(lli submatrixSize, lli** submatrix)
     std::sort(degrees.begin(), degrees.end(), std::greater<std::pair<lli, lli>>());
 
     lli chromaticNumber = 0;
+    std::vector<char> used;
     for (lli i = 0; i < submatrixSize; i++) {
+        lli degree = degrees[i].first;
         lli node = degrees[i].second;
+        used.assign(degree + 2, 0);
+        for (lli j = 0; j < submatrixSize; j++) {
+            if (submatrix[node][j] && colors[j] > 0 && colors[j] <= degree + 1) {
+                used[colors[j]] = 1;
+            }
+        }
         lli color = 1;
-        while (true) {
-            bool ok = true;
-            for (lli j = 0; j < submatrixSize; j++) {
-                if (submatrix[node][j] && colors[j] == color) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (ok) {
-                break;
-            }
+        while (used[color]) {
             color++;
         }
         colors[node] = color;
@@ -44,10 +45,5 @@ ColoringResult largestDegreeFirst(lli submatrixSize, lli** submatrix)
 
     return ColoringResult(colors, chromaticNumber);
 }
-
-// int smallestDegreeLast(int submatrixSize, int** submatrix)
-// {
-
-// }
 
 #endif // COLORING_ALGORITHMS_MPI_H

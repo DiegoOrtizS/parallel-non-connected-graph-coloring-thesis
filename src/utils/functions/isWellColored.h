@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 
-void isWellColored(lli* colors, lli n, lli** graph, lli *labels = nullptr) {
+inline void isWellColored(lli* colors, lli n, lli** graph, lli *labels = nullptr) {
     for (lli vertex = 0; vertex < n; ++vertex) {
         if (colors[vertex] == 0) {
             throw std::logic_error("Error: Vertex " + std::to_string(vertex) + " is not colored.");

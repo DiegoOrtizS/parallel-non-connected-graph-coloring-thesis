@@ -3,82 +3,79 @@
 
 #include <omp.h>
 #include <vector>
-#include <set>
-
-#include <omp.h>
-#include <vector>
-#include <set>
+#include <algorithm>
+#include "../../utils/types.h"
 #include "../../utils/structs/ColoringResult.h"
 
+// Smallest color not used by the colored neighbors of `vertex`.
+// `mark` is a per-thread scratch array of size n + 2; mark[c] == stamp means color c is taken.
+// Using a stamp avoids clearing the array (and the std::set allocations of the previous version).
+inline lli smallestFreeColor(lli n, lli **adjMatrix, const lli *colors, lli vertex,
+                             std::vector<lli> &mark, lli stamp) {
+    for (lli j = 0; j < n; j++) {
+        lli c = colors[j];
+        if (adjMatrix[vertex][j] && c > 0 && c <= n) {
+            mark[c] = stamp;
+        }
+    }
+    lli color = 1;
+    while (mark[color] == stamp) {
+        color++;
+    }
+    return color;
+}
+
+// Reduced Synchronization Optimistic Coloring (Rokos, Gorman and Kelly, Euro-Par 2015, Algorithm 3).
+// Reads of colors[] race with writes by design (optimistic coloring); conflicts are detected
+// and repaired in the following rounds, and the final coloring is verified by the caller.
 ColoringResult coloringOMP(lli n, lli **adjMatrix) {
-    lli *colors = new lli[n];
-    #pragma omp parallel for
-    for (lli i = 0; i < n; i++) {
-        std::set<lli> C;
-        for (lli j = 0; j < n; j++) {
-            if (adjMatrix[i][j] && colors[j] != 0) {
-                C.insert(colors[j]);
-            }
-        }
+    lli *colors = new lli[n]();  // value-initialized: 0 means "uncolored"
 
-        lli smallestColor = 1;
-        while (C.count(smallestColor) > 0) {
-            smallestColor++;
+    // Round 0: tentative coloring of every vertex.
+    #pragma omp parallel
+    {
+        std::vector<lli> mark(n + 2, -1);
+        #pragma omp for schedule(static)
+        for (lli i = 0; i < n; i++) {
+            colors[i] = smallestFreeColor(n, adjMatrix, colors, i, mark, i);
         }
-
-        colors[i] = smallestColor;
     }
 
-    #pragma omp barrier
-
-    std::vector<lli> U;
+    std::vector<lli> U(n);
     for (lli i = 0; i < n; i++) {
-        U.push_back(i);
+        U[i] = i;
     }
 
-    lli iteration = 1;
+    // Detect-and-recolor rounds, a single implicit barrier each.
+    lli round = 1;
     while (!U.empty()) {
         std::vector<lli> L;
 
-        #pragma omp parallel for
-        for (lli i = 0; i < U.size(); i++) {
-            lli vertex = U[i];
-            bool shouldUpdateColor = false;
-
-            for (lli j = 0; j < n; j++) {
-                if (adjMatrix[vertex][j] && j > vertex && colors[j] == colors[vertex]) {
-                    shouldUpdateColor = true;
-                    break;
-                }
-            }
-
-            if (shouldUpdateColor) {
-                std::set<lli> C;
-                for (lli j = 0; j < n; j++) {
-                    if (adjMatrix[vertex][j] && colors[j] != 0) {
-                        C.insert(colors[j]);
+        #pragma omp parallel
+        {
+            std::vector<lli> mark(n + 2, -1);
+            std::vector<lli> localL;
+            #pragma omp for schedule(dynamic, 64) nowait
+            for (size_t idx = 0; idx < U.size(); idx++) {
+                lli vertex = U[idx];
+                bool defective = false;
+                for (lli j = vertex + 1; j < n; j++) {
+                    if (adjMatrix[vertex][j] && colors[j] == colors[vertex]) {
+                        defective = true;
+                        break;
                     }
                 }
-
-                lli smallestColor = 1;
-                while (C.count(smallestColor) > 0) {
-                    smallestColor++;
-                }
-
-                colors[vertex] = smallestColor;
-
-                #pragma omp critical
-                {
-                    L.push_back(vertex);
+                if (defective) {
+                    colors[vertex] = smallestFreeColor(n, adjMatrix, colors, vertex, mark, round * n + vertex);
+                    localL.push_back(vertex);
                 }
             }
+            #pragma omp critical
+            L.insert(L.end(), localL.begin(), localL.end());
         }
 
-        #pragma omp barrier
-
-        U = L;
-
-        iteration++;
+        U.swap(L);
+        round++;
     }
 
     lli chromaticNumber = 0;
@@ -90,4 +87,4 @@ ColoringResult coloringOMP(lli n, lli **adjMatrix) {
     return ColoringResult(colors, chromaticNumber);
 }
 
-#endif // COLORING_ALGORITHMS_H
+#endif // COLORING_OMP_H
