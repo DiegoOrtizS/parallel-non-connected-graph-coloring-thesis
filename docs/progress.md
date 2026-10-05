@@ -37,3 +37,10 @@ Results already valid for the thesis (deterministic, from CI):
 - coloring_quality.py --exact: clique packing on the complement with CP-SAT; chi(G1) = 52, chi(G2) = 128 (32/32 optimal, < 1.4 s each).
 - --color=cliques: triangles of the complement, then Karp-Sipser; G2: 132 colors vs LDF 154.
 - load_balance.py: speedup ceiling W / w_max; Zipf s = 1: 1.60, ca-GrQc: 1.12 (CSR); LPT reaches min(p, W / w_max).
+
+## Density sweep (PR #10, CI green, run 37347320522)
+
+- quality-vs-density: 8 components of 312 vertices per density, 0.85 to 0.995, against chi from CP-SAT (300 s per component).
+- LDF overhead grows with the complement average degree: +4.8 % (3.1), +29 % (15.6), up to +43 % (46.7, against the lower bound).
+- --color=cliques now packs cliques of any size, larger first: within 1.5 % up to degree 9.3, at most 14 % at 46.7; the triangle-only version fell to 108 colors (worse than LDF) at 46.7.
+- CP-SAT proves optimality up to average degree ~15 (n_i = 312).
