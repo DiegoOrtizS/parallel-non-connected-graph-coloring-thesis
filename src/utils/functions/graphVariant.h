@@ -63,6 +63,11 @@ struct GraphVariant {
     }
 };
 
+// Base name of the graph files ("n m k" plus the variant tag), without extension.
+inline std::string graphFileName(lli n, lli m, lli k, const GraphVariant &variant) {
+    return std::to_string(n) + " " + std::to_string(m) + " " + std::to_string(k) + variant.tag();
+}
+
 // Vertices and edges of each component. v1: as equal as possible. Zipf: n_i proportional to
 // (i+1)^(-s) with n_i >= 2, and m_i proportional to the capacity n_i(n_i-1)/2 so that every
 // component keeps a similar density, clamped to [n_i - 1, n_i(n_i-1)/2] to stay connected and simple.

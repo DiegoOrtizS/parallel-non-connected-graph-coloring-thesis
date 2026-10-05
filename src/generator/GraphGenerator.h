@@ -8,6 +8,10 @@
 
 #include "../utils/graphs/Graph.h"
 #include "../utils/functions/graphVariant.h"
+#include "../utils/functions/edgeListIO.h"
+
+// Edges of the instance (n, m, nPrime, variant), sorted, with u < v. Defined in GraphGenerator.cpp.
+std::vector<Edge> generateEdgeList(lli n, lli m, lli nPrime, const GraphVariant &variant);
 
 class GraphGenerator : public mesquo::Graph
 {
@@ -42,6 +46,7 @@ class GraphGenerator : public mesquo::Graph
         void drawGraph();
         void validateGraph();
         void saveGraph(std::string dir = "../../data");
+        void saveEdges(std::string dir = "../../data");
         bool loadGraph(std::string name, std::string dir = "../../data");
         void loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir = "../../data");
 };
