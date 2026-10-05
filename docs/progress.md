@@ -44,3 +44,9 @@ Results already valid for the thesis (deterministic, from CI):
 - LDF overhead grows with the complement average degree: +4.8 % (3.1), +29 % (15.6), up to +43 % (46.7, against the lower bound).
 - --color=cliques now packs cliques of any size, larger first: within 1.5 % up to degree 9.3, at most 14 % at 46.7; the triangle-only version fell to 108 colors (worse than LDF) at 46.7.
 - CP-SAT proves optimality up to average degree ~15 (n_i = 312).
+
+## Local search, complement methods on bitmap blocks, component baselines (PRs #11, #12, CI green)
+
+- --color=cliques: local search on the packing (accepted only when the color count falls; deterministic work cap). Sweep run 37356235196: within 1 % up to complement degree 9.3, 5.5 % at 15.6, at most 13 % at 62.2 (D = 0.80); LDF up to 47 %.
+- matching, cliques and best on bitmap blocks of density >= 1/2 (complement built at the owner); best never worse than LDF. LDF colors identical to the forced-complement run.
+- components-baselines (run 37357917571): FastSV, LACC, ConnectIt and SDB14 find the same k as mpi_v2 on G2, Zipf G2, a 10^6-vertex permuted graph and ca-GrQc. No timings.
