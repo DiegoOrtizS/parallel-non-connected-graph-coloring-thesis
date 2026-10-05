@@ -52,7 +52,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends g++ make libopenmpi-dev openmpi-bin freeglut3-dev libglu1-mesa-dev python3-venv
-          python3 -m venv .venv && .venv/bin/pip install --quiet networkx
+          python3 -m venv .venv && .venv/bin/pip install --quiet networkx "ortools==9.15.*"
       - name: Generate graph and run the sequential baselines
         run: |
           mkdir -p src/data scripts/results
@@ -62,7 +62,7 @@ jobs:
       - name: Coloring quality
         run: |
           .venv/bin/python scripts/coloring_quality.py "src/data/${{ matrix.graph.n }} ${{ matrix.graph.m }} ${{ matrix.graph.k }}.txt" \
-            --csv scripts/results/quality-${{ matrix.graph.name }}.csv | tee scripts/results/quality-${{ matrix.graph.name }}.txt
+            --csv scripts/results/quality-${{ matrix.graph.name }}.csv --exact | tee scripts/results/quality-${{ matrix.graph.name }}.txt
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
@@ -210,4 +210,44 @@ jobs:
           path: |
             scripts/results/real.log
             scripts/results/colpack.csv
+          if-no-files-found: ignore
+
+  load-balance:
+    # Work model of coloring by components (deterministic, no timings): speedup ceiling W / w_max
+    # and the speedup of the contiguous and LPT assignments, on balanced, Zipf and real graphs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ make freeglut3-dev libglu1-mesa-dev python3
+      - name: Generate graphs
+        run: |
+          mkdir -p src/data/real scripts/results
+          make -s -C src/generator
+          cd src/generator
+          ./a.out 1000 30000 16 --edges-only
+          ./a.out 10000 1500000 32 --edges-only
+          GRAPH_VARIANT="zipf=0.5" ./a.out 10000 1998761 32 --edges-only
+          GRAPH_VARIANT="zipf=1.0" ./a.out 10000 4793190 32 --edges-only
+          cd ../..
+          curl -sSfL https://snap.stanford.edu/data/ca-GrQc.txt.gz | gunzip > src/data/real/ca-GrQc.txt
+          python3 scripts/convert_graph.py to-edges src/data/real/ca-GrQc.txt src/data/real/ca-GrQc.edges
+      - name: Load balance
+        run: |
+          python3 scripts/load_balance.py \
+            "G1=src/data/1000 30000 16.edges" \
+            "G2=src/data/10000 1500000 32.edges" \
+            "G2-zipf0.5=src/data/10000 1998761 32 zipf0.5.edges" \
+            "G2-zipf1=src/data/10000 4793190 32 zipf1.edges" \
+            "ca-GrQc=src/data/real/ca-GrQc.edges" \
+            --csv scripts/results/load_balance.csv
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-balance
+          path: scripts/results/load_balance.csv
           if-no-files-found: ignore
