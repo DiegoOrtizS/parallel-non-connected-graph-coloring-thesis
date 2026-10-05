@@ -72,3 +72,41 @@ jobs:
             scripts/results/quality-${{ matrix.graph.name }}.*
             scripts/results/sequential-${{ matrix.graph.name }}.log
           if-no-files-found: ignore
+
+  communication-volume:
+    # Bytes communicated per phase by v1 (components), the --replicate baseline and the root-free v2.
+    # Volumes are deterministic for an instance and p, so they are valid data for hypothesis H1.
+    needs: build-and-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ make libopenmpi-dev openmpi-bin freeglut3-dev libglu1-mesa-dev
+      - name: Measure communication volume
+        run: |
+          mkdir -p src/data scripts/results
+          for d in generator algorithms/mpi algorithms/mpi_v2; do make -s -C src/$d; done
+          LOG=$PWD/scripts/results/volume.log
+          : > "$LOG"
+          measure() {  # measure n m k
+            (cd src/generator && ./a.out "$1" "$2" "$3" > /dev/null)
+            for p in 4 16; do
+              (cd src/algorithms/mpi && mpirun --oversubscribe -np $p ./a.out "$1" "$2" "$3") >> "$LOG"
+              (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np $p ./a.out "$1" "$2" "$3") >> "$LOG"
+            done
+            # Replication needs n^2 words per process: only with p = 4 to stay within the runner's memory.
+            (cd src/algorithms/mpi && mpirun --oversubscribe -np 4 ./a.out "$1" "$2" "$3" --replicate) >> "$LOG"
+          }
+          measure 1000 30000 16
+          measure 10000 1500000 32
+          { echo "algorithm,n,m,k,p,h,bytes_dsu,bytes_pack,bytes_send,bytes_gather,bytes_total"; grep '^VOLUME,' "$LOG" | cut -d, -f2-; } | tee scripts/results/volume.csv
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: communication-volume
+          path: scripts/results/volume.*
+          if-no-files-found: ignore

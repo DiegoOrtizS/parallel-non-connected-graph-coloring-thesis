@@ -12,6 +12,7 @@
 #include "connectedComponents.h"
 #include "coloringAlgorithms.h"
 #include "../../utils/structs/PhaseTimes.h"
+#include "../../utils/structs/CommVolume.h"
 
 void coloringComponents(const std::vector<lli> &componentData, ColoringResult (*coloringAlgorithm)(lli, lli**), std::vector<lli> &colors, std::vector<lli> &labels, lli &chromaticNumber) {
     size_t currentIndex = 0;
@@ -118,7 +119,9 @@ inline std::vector<std::vector<int>> assignComponents(const std::vector<std::vec
     return assignment;
 }
 
-ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, ColoringResult (*coloringAlgorithm)(lli, lli**), PhaseTimes *phaseTimes = nullptr, const DistributionOptions &options = DistributionOptions()) {
+ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, ColoringResult (*coloringAlgorithm)(lli, lli**), PhaseTimes *phaseTimes = nullptr, const DistributionOptions &options = DistributionOptions(), CommVolume *volume = nullptr) {
+    // Bytes this process delivers to others in each phase; summed over processes at the end.
+    double sentSend = 0, sentGather = 0;
     std::vector<lli> colors, labels, componentData;
     lli chromaticNumber = 0;
     int processSize, sumSubmatrixSize = 0;
@@ -162,6 +165,7 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
         if (processId == 0) {
             for (int r = 1; r < processSize; r++) {
                 MPI_Send(buffers[r].data(), static_cast<int>(buffers[r].size()), MPI_LONG_LONG_INT, r, 0, MPI_COMM_WORLD);
+                sentSend += buffers[r].size() * sizeof(lli) + sizeof(int);
                 MPI_Send(&bufferVertices[r], 1, MPI_INT, r, 1, MPI_COMM_WORLD);
                 std::vector<lli>().swap(buffers[r]);
             }
@@ -209,6 +213,9 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
         MPI_Bcast(layout.data(), static_cast<int>(layoutSize), MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD);
         flat.resize(n * n);
         MPI_Bcast(flat.data(), static_cast<int>(n * n), MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD);
+        if (processId == 0) {
+            sentSend += static_cast<double>(processSize - 1) * (1 + layoutSize + n * n) * sizeof(lli);
+        }
         MPI_Barrier(MPI_COMM_WORLD);
         tSend = MPI_Wtime() - t;
 
@@ -266,6 +273,18 @@ ColoringResult coloringMPI(const int &processId, const lli &n, lli **graph, Colo
     MPI_Waitall(2, requests, MPI_STATUSES_IGNORE);
     MPI_Barrier(MPI_COMM_WORLD);
     tGather = MPI_Wtime() - t;
+
+    if (processId != 0) {
+        sentGather = sizeof(lli) + sizeof(int) + 2.0 * sumSubmatrixSize * sizeof(lli);
+    }
+    if (volume != nullptr) {
+        double local[2] = {sentSend, sentGather}, global[2];
+        MPI_Reduce(local, global, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        if (processId == 0) {
+            volume->send = global[0];
+            volume->gather = global[1];
+        }
+    }
 
     if (phaseTimes != nullptr) {
         double local[5] = {tDsu, tPack, tSend, tColoring, tGather}, global[5];
