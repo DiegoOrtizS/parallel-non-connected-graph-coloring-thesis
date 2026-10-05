@@ -13,7 +13,7 @@ Todavía no hay código de estas extensiones.
 
 ## 0. Requisito previo: integración continua
 
-Todo el C++ de la rama `fix/experimentos` se escribió sin compilarlo, y cada extensión añadiría más código en las mismas condiciones. Antes de cualquier cambio de algoritmo hace falta un workflow de GitHub Actions que:
+Todo el C++ de la rama `fix/experiments` se escribió sin compilarlo, y cada extensión añadiría más código en las mismas condiciones. Antes de cualquier cambio de algoritmo hace falta un workflow de GitHub Actions que:
 
 1. instale `g++`, `libopenmpi-dev`, `openmpi-bin` y `freeglut3-dev`;
 2. ejecute `make` en los cinco programas;

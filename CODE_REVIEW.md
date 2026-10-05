@@ -1,6 +1,6 @@
 # Revisión del código
 
-Revisión del estado del repositorio en `ae95e17` (rama `main`), que es la versión con la que se obtuvieron los resultados de la tesis. Las correcciones están en la rama `fix/experimentos`.
+Revisión del estado del repositorio en `ae95e17` (rama `main`), que es la versión con la que se obtuvieron los resultados de la tesis. Las correcciones están en la rama `fix/experiments`.
 
 **Importante:** en la máquina donde se hizo la revisión no había compilador de C++ ni MPI, así que **los cambios no se compilaron ni se ejecutaron**. Antes de lanzar la campaña hay que compilar en Khipu (`make` en cada carpeta) y hacer una corrida corta de humo (ver README).
 
