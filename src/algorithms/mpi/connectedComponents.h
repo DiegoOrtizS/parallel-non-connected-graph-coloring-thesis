@@ -4,17 +4,21 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include "../../utils/types.h"
 
-int find(lli parent[], lli x) {
+lli find(std::vector<lli> &parent, lli x) {
     if (parent[x] == x) {
         return x;
     }
     return parent[x] = find(parent, parent[x]);
 }
 
-void unionSet(lli parent[], lli rank[], lli x, lli y) {
+void unionSet(std::vector<lli> &parent, std::vector<lli> &rank, lli x, lli y) {
     lli px = find(parent, x);
     lli py = find(parent, y);
+    if (px == py) {
+        return;
+    }
 
     if (rank[px] > rank[py]) {
         parent[py] = px;
@@ -26,18 +30,19 @@ void unionSet(lli parent[], lli rank[], lli x, lli y) {
     }
 }
 
+// Connected components with union by rank and path compression.
+// Scanning the upper triangle of the adjacency matrix costs Theta(n^2).
 std::vector<std::vector<lli>> dsu(lli matrixSize, lli** matrix) {
     std::vector<std::vector<lli>> components;
-    lli parent[matrixSize];
-    lli rank[matrixSize];
+    // std::vector instead of a VLA: large n would overflow the stack.
+    std::vector<lli> parent(matrixSize), rank(matrixSize, 0);
 
     for (lli i = 0; i < matrixSize; i++) {
         parent[i] = i;
-        rank[i] = 0;
     }
 
     for (lli i = 0; i < matrixSize; i++) {
-        for (lli j = 0; j < matrixSize; j++) {
+        for (lli j = i + 1; j < matrixSize; j++) {
             if (matrix[i][j]) {
                 unionSet(parent, rank, i, j);
             }
@@ -53,6 +58,9 @@ std::vector<std::vector<lli>> dsu(lli matrixSize, lli** matrix) {
     for (auto& [p, c] : componentsMap) {
         components.push_back(c);
     }
+
+    // Deterministic order (by smallest vertex) so every run assigns the same components to each process.
+    std::sort(components.begin(), components.end());
 
     return components;
 }

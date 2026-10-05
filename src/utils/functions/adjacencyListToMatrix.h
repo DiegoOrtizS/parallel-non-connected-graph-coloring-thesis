@@ -5,7 +5,7 @@
 #include <iostream>
 #include "../../generator/jngen.h"
 
-lli **adjacencyListToMatrix(jngen::Graph graph) {
+inline lli **adjacencyListToMatrix(jngen::Graph graph) {
     lli n = graph.n();
     lli **adjMatrix = new lli*[n];
     for (lli i = 0; i < n; ++i) {

@@ -1,3 +1,7 @@
+#ifndef GRAPH_GENERATOR_H
+#define GRAPH_GENERATOR_H
+
+#include <string>
 #include <GL/glut.h>
 #include <vector>
 #include <array>
@@ -18,6 +22,7 @@ class GraphGenerator : public mesquo::Graph
         static void staticDrawGraph() {
             currentInstance->drawGraph();
         }
+    public:
         void setupDrawGraph() {
             currentInstance = this;
             glutDisplayFunc(GraphGenerator::staticDrawGraph);
@@ -37,3 +42,5 @@ class GraphGenerator : public mesquo::Graph
         bool loadGraph(std::string name, std::string dir = "../../data");
         void loadIfExistsOrGenerateNewGraph(lli n, lli m, lli nPrime, std::string dir = "../../data");
 };
+
+#endif // GRAPH_GENERATOR_H

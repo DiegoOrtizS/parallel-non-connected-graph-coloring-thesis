@@ -10,6 +10,8 @@
 #include <iostream>
 #include <random>
 
+GraphGenerator* GraphGenerator::currentInstance = nullptr;
+
 
 void GraphGenerator::initializeColors() {
     colors.clear();

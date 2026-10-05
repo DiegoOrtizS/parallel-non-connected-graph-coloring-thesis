@@ -1,7 +1,7 @@
 #ifndef DFS_H
 #define DFS_H
 
-void DFS(lli** graph, lli &n, lli &vertex, bool* visited, lli& componentSize, lli& componentEdges) {
+inline void DFS(lli** graph, lli &n, lli &vertex, bool* visited, lli& componentSize, lli& componentEdges) {
     visited[vertex] = true;
     ++componentSize;
 

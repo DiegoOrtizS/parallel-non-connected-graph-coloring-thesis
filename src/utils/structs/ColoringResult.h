@@ -1,6 +1,8 @@
 #ifndef COLORING_RESULT_H
 #define COLORING_RESULT_H
 
+#include "../types.h"
+
 struct ColoringResult
 {
     lli *colors;

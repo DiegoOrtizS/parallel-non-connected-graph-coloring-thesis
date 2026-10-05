@@ -3,7 +3,7 @@
 
 #include <vector>
 
-std::vector<lli> distributeIntegers(lli n, lli nPrime) {
+inline std::vector<lli> distributeIntegers(lli n, lli nPrime) {
     lli quotient = n / nPrime;
     lli remainder = n % nPrime;
 
