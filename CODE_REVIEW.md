@@ -28,7 +28,7 @@ Severidad:
 
 | # | Severidad | Archivo | Problema | Estado |
 |---|-----------|---------|----------|--------|
-| 9 | Alta | `utils/functions/*.h` | Funciones definidas en headers sin `inline`, incluidas desde varias unidades de traducción. Con más de un `.o` que las incluya hay error de "multiple definition" en el enlace. | Corregido: `inline` |
+| 9 | Baja | `utils/functions/*.h` | Funciones definidas en headers sin `inline`. Hoy cada una la incluye un solo `.cpp`, así que no fallaba; pero en cuanto dos unidades de traducción incluyan el mismo header, el enlace falla con "multiple definition". | Preventivo: `inline` |
 | 10 | Alta | `generator/main.cpp` | Usaba un constructor `GraphGenerator(1e4, 995000, 50, 1, 42)` y un `generateGraph()` sin argumentos que no existen. Además, dibujaba sin registrar la función de display de GLUT. | Reescrito: `./a.out n m k [--draw]` |
 | 11 | Alta | `generator/GraphGenerator.h` | Sin include guard, y el miembro estático `currentInstance` estaba declarado pero nunca definido. | Corregido |
 | 12 | Media | `mpi/connectedComponents.h` | Arreglos de longitud variable (`lli parent[n]`) en la pila: no son C++ estándar y desbordan la pila con $n$ grande. `find` devolvía `int` siendo `lli`. | Corregido: `std::vector`, tipos coherentes |

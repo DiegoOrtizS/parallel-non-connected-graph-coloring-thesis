@@ -1,4 +1,5 @@
 **/*.out
 **/*.o
 **/*.h.gch
-src/data/*.txtresults/*.log
+src/data/*.txt
+scripts/results/*.log

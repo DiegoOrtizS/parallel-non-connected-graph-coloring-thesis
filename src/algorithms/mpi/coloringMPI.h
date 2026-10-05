@@ -2,6 +2,7 @@
 #define COLORING_MPI_H
 
 #include <mpi.h>
+#include <utility>
 #include "connectedComponents.h"
 #include "coloringAlgorithms.h"
 #include "../../utils/structs/PhaseTimes.h"

@@ -22,6 +22,7 @@ PROCS="1 2 4 8 16 32"
 SRC=$(cd .. && pwd)/src
 export OMP_NUM_THREADS=1 OMP_PROC_BIND=close OMP_PLACES=cores
 
+mkdir -p "$SRC/data" results
 (cd "$SRC/generator" && make -s)
 for d in sequential mpi; do (cd "$SRC/algorithms/$d" && make -s); done
 

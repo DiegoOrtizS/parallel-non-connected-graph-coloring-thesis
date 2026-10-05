@@ -26,6 +26,7 @@ run() {  # run <dir> <command...>: one warm-up (discarded), then R measured repe
     for ((i = 0; i < R; i++)); do (cd "$SRC/algorithms/$dir" && "$@"); done
 }
 
+mkdir -p "$SRC/data" results
 # Generate the graph once (it is cached in src/data) and build every program.
 (cd "$SRC/generator" && make -s && ./a.out "$N" "$M" "$K")
 for d in sequential omp mpi hybrid; do (cd "$SRC/algorithms/$d" && make -s); done
@@ -40,6 +41,6 @@ for c in $CORES; do
     if (( c >= 2 )); then
         p=$((c / 2))
         export OMP_NUM_THREADS=2
-        run hybrid mpirun -np "$p" --bind-to none --map-by "ppr:$p:node:pe=2" ./a.out "$N" "$M" "$K" 2
+        run hybrid mpirun -np "$p" --map-by "ppr:$p:node:pe=2" ./a.out "$N" "$M" "$K" 2
     fi
 done

@@ -128,6 +128,7 @@ El tiempo $T_1^*$ de cada grafo es la media de `seq-ldf-components` en `summary.
 Antes de lanzar una campaña completa, conviene ejecutar un grafo pequeño y comprobar que los cinco programas imprimen `The graph is well colored.` y el mismo número de componentes:
 
 ```bash
+mkdir -p src/data
 cd src/generator && make && ./a.out 200 2000 4
 cd ../algorithms/sequential && make && ./a.out 200 2000 4
 cd ../omp && make && ./a.out 200 2000 4 4 rsoc && ./a.out 200 2000 4 4 components
