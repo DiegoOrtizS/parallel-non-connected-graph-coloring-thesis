@@ -170,6 +170,27 @@ mpirun -np 4 ./a.out 1000 30000 16 --root --blocks=bitmap --scatterv
 
 Con cualquier opción, todas las variantes colorean igual que v1.
 
+
+### Representación por complemento (`--blocks=complement`, `--color=…`)
+
+En componentes densas, la raíz puede enviar las aristas que *faltan*. Con índices de 16 bits ($n_i \le 65536$), `auto` compara los bytes exactos de las tres codificaciones:
+
+| Densidad | Codificación elegida |
+|---|---|
+| $D < 1/16$ | lista de aristas |
+| $1/16 \le D \le 15/16$ | mapa de bits |
+| $D > 15/16$ | complemento |
+
+La línea `BLOCKS` del log reporta cuántas componentes se enviaron con cada codificación.
+
+Los bloques de complemento se colorean sin expandirlos:
+
+- `--color=ldf` (por defecto): el voraz LDF sobre el complemento, con los mismos colores que sobre $G$ y $O(n_i \log n_i + \bar m_i)$ de trabajo.
+- `--color=matching`: un emparejamiento maximal del complemento (Karp–Sipser); cada par emparejado comparte color, de modo que usa $n_i - |M|$ colores.
+- `--color=best`: por componente, el que use menos colores de los dos.
+
+Medido en la CI con $p = 4$, el complemento envía 70 veces menos que la matriz de v1 en G1 y 93 veces menos en G2.
+
 ### Grafos reales y baselines
 
 ```bash

@@ -26,9 +26,13 @@
 //
 // Root mode (--root), CSV name mpi-v2r-ldf: the v1 algorithm on the edge list instead of the matrix
 //   dsu    union-find of all edges on the root, Theta(n + m)
-//   pack   the root encodes each component as a bitmap of n_i^2 bits or as a local edge list,
-//          whichever is smaller (--blocks=auto, default; or --blocks=bitmap / --blocks=edges)
+//   pack   the root encodes each component as a bitmap of n_i^2 bits, a list of its edges, or a
+//          list of the edges of its complement (16-bit indices when n_i <= 65536), whichever has
+//          the fewest bytes (--blocks=auto, default; or --blocks=bitmap|edges|complement)
 //   send   MPI_Send per process, or one MPI_Scatterv with --scatterv
+//   color  complement blocks are colored on the complement, never expanded:
+//          --color=ldf (default) same colors as LDF on G; --color=matching coloring from a maximal
+//          matching of the complement; --color=best the fewer colors of the two per component
 //
 // Both modes then build a CSR of each process's components, color it with greedy Largest-Degree-First
 // in the same vertex order as the v1 program (so every version assigns the same colors), gather the
@@ -43,6 +47,7 @@ struct Options {
     bool root = false;
     bool scatterv = false;
     std::string blocks = "auto";
+    std::string color = "ldf";
 };
 
 uint32_t findRoot(std::vector<uint32_t> &parent, uint32_t x) {
@@ -142,59 +147,254 @@ void buildCsr(uint32_t vertices, const std::vector<uint32_t> &localEdges, std::v
     }
 }
 
-// Message format per component (uint32 words):
-//   n_i, labels[n_i], kind (0 = bitmap, 1 = edges), payload
-//   bitmap: ceil(n_i^2 / 32) words, bit a*n_i + b set for every local edge a < b
-//   edges:  m_i, then m_i pairs of local indices
-void encodeComponent(const std::vector<uint32_t> &labels, const std::vector<uint32_t> &localEdges, const std::string &blocks, std::vector<uint32_t> &out) {
-    uint64_t size = labels.size(), edgeCount = localEdges.size() / 2;
-    uint64_t bitmapWords = (size * size + 31) / 32, edgeWords = 1 + 2 * edgeCount;
-    bool bitmap = blocks == "bitmap" || (blocks == "auto" && bitmapWords < edgeWords);
-    out.push_back(static_cast<uint32_t>(size));
-    out.insert(out.end(), labels.begin(), labels.end());
-    out.push_back(bitmap ? 0 : 1);
-    if (bitmap) {
-        size_t base = out.size();
-        out.resize(base + bitmapWords, 0);
-        for (size_t i = 0; i < localEdges.size(); i += 2) {
-            uint64_t a = std::min(localEdges[i], localEdges[i + 1]), b = std::max(localEdges[i], localEdges[i + 1]);
-            uint64_t bit = a * size + b;
-            out[base + bit / 32] |= 1u << (bit % 32);
+// A component as received by its owner, before coloring.
+//   kind 0 (bitmap) and 1 (edges): `pairs` are edges of G in local indices
+//   kind 2 (complement):           `pairs` are edges of the complement H = G-bar in local indices
+struct Block {
+    std::vector<uint32_t> labels;
+    uint32_t kind = 1;
+    std::vector<uint32_t> pairs;
+};
+
+// Bytes of each encoding of a component with n vertices and m edges (index width w bits):
+//   edges 2*(w/8)*m, bitmap n^2/8, complement 2*(w/8)*(n(n-1)/2 - m).
+// With w = 16 the cheapest is: edges for D < 1/16, bitmap for 1/16 <= D <= 15/16, complement for D > 15/16.
+struct EncodingSizes {
+    uint64_t edges, bitmap, complement;
+};
+
+uint32_t indexWidth(uint64_t size) { return size <= 65536 ? 16 : 32; }
+
+EncodingSizes encodingSizes(uint64_t size, uint64_t edgeCount) {
+    uint64_t pairBytes = indexWidth(size) == 16 ? 4 : 8;
+    uint64_t complementCount = size * (size - 1) / 2 - edgeCount;
+    return {pairBytes * edgeCount, (size * size + 31) / 32 * 4, pairBytes * complementCount};
+}
+
+// Pairs are written one word per pair with 16-bit indices, or two words with 32-bit indices.
+void pushPairs(const std::vector<uint32_t> &pairs, uint32_t width, std::vector<uint32_t> &out) {
+    out.push_back(static_cast<uint32_t>(pairs.size() / 2));
+    for (size_t i = 0; i < pairs.size(); i += 2) {
+        if (width == 16) {
+            out.push_back(pairs[i] | pairs[i + 1] << 16);
+        } else {
+            out.push_back(pairs[i]);
+            out.push_back(pairs[i + 1]);
         }
-    } else {
-        out.push_back(static_cast<uint32_t>(edgeCount));
-        out.insert(out.end(), localEdges.begin(), localEdges.end());
     }
 }
 
-// Appends the components of a message to `mine` (global ids) and `localEdges` (indices into mine).
-void decodeComponents(const std::vector<uint32_t> &message, std::vector<uint32_t> &mine, std::vector<uint32_t> &localEdges) {
+size_t readPairs(const std::vector<uint32_t> &message, size_t position, uint32_t width, std::vector<uint32_t> &pairs) {
+    uint32_t count = message[position++];
+    pairs.reserve(pairs.size() + 2 * count);
+    for (uint32_t i = 0; i < count; i++) {
+        if (width == 16) {
+            uint32_t word = message[position++];
+            pairs.push_back(word & 0xFFFFu);
+            pairs.push_back(word >> 16);
+        } else {
+            pairs.push_back(message[position++]);
+            pairs.push_back(message[position++]);
+        }
+    }
+    return position;
+}
+
+// Message format per component (uint32 words): n_i, labels[n_i], kind, width, payload
+//   kind 0 bitmap:     ceil(n_i^2 / 32) words, bit a*n_i + b set for every edge a < b of G
+//   kind 1 edges:      edges of G as packed pairs
+//   kind 2 complement: edges of the complement as packed pairs
+// `blocks` = auto picks the encoding with the fewest bytes; counts[kind] records the choice.
+void encodeComponent(const std::vector<uint32_t> &labels, const std::vector<uint32_t> &localEdges, const std::string &blocks,
+                     std::vector<uint32_t> &out, uint64_t counts[3]) {
+    uint64_t size = labels.size(), edgeCount = localEdges.size() / 2;
+    EncodingSizes bytes = encodingSizes(size, edgeCount);
+    uint32_t kind;
+    if (blocks == "bitmap") {
+        kind = 0;
+    } else if (blocks == "edges") {
+        kind = 1;
+    } else if (blocks == "complement") {
+        kind = 2;
+    } else {
+        kind = bytes.bitmap < bytes.edges ? 0 : 1;
+        if (bytes.complement < std::min(bytes.bitmap, bytes.edges)) {
+            kind = 2;
+        }
+    }
+    counts[kind]++;
+    uint32_t width = indexWidth(size);
+    out.push_back(static_cast<uint32_t>(size));
+    out.insert(out.end(), labels.begin(), labels.end());
+    out.push_back(kind);
+    out.push_back(width);
+    if (kind == 1) {
+        pushPairs(localEdges, width, out);
+        return;
+    }
+    // Bitmap and complement both need the adjacency of the component: Theta(n_i^2) on the encoder.
+    std::vector<uint32_t> bits((size * size + 31) / 32, 0);
+    for (size_t i = 0; i < localEdges.size(); i += 2) {
+        uint64_t a = std::min(localEdges[i], localEdges[i + 1]), b = std::max(localEdges[i], localEdges[i + 1]);
+        uint64_t bit = a * size + b;
+        bits[bit / 32] |= 1u << (bit % 32);
+    }
+    if (kind == 0) {
+        out.insert(out.end(), bits.begin(), bits.end());
+        return;
+    }
+    std::vector<uint32_t> missing;
+    for (uint64_t a = 0; a < size; a++) {
+        for (uint64_t b = a + 1; b < size; b++) {
+            uint64_t bit = a * size + b;
+            if (!(bits[bit / 32] >> (bit % 32) & 1u)) {
+                missing.push_back(static_cast<uint32_t>(a));
+                missing.push_back(static_cast<uint32_t>(b));
+            }
+        }
+    }
+    pushPairs(missing, width, out);
+}
+
+// Splits a message into blocks. A bitmap is expanded to edges of G; a complement is kept as is,
+// so a dense component is never expanded to its Theta(n_i^2) edges.
+std::vector<Block> decodeBlocks(const std::vector<uint32_t> &message) {
+    std::vector<Block> blocks;
     size_t position = 0;
     while (position < message.size()) {
+        Block block;
         uint64_t size = message[position++];
-        uint32_t base = mine.size();
-        mine.insert(mine.end(), message.begin() + position, message.begin() + position + size);
+        block.labels.assign(message.begin() + position, message.begin() + position + size);
         position += size;
-        uint32_t kind = message[position++];
-        if (kind == 0) {
+        block.kind = message[position++];
+        uint32_t width = message[position++];
+        if (block.kind == 0) {
             for (uint64_t a = 0; a < size; a++) {
                 for (uint64_t b = a + 1; b < size; b++) {
                     uint64_t bit = a * size + b;
                     if (message[position + bit / 32] >> (bit % 32) & 1u) {
-                        localEdges.push_back(base + a);
-                        localEdges.push_back(base + b);
+                        block.pairs.push_back(static_cast<uint32_t>(a));
+                        block.pairs.push_back(static_cast<uint32_t>(b));
                     }
                 }
             }
             position += (size * size + 31) / 32;
         } else {
-            uint32_t edgeCount = message[position++];
-            for (uint32_t i = 0; i < 2 * edgeCount; i++) {
-                localEdges.push_back(base + message[position + i]);
+            position = readPairs(message, position, width, block.pairs);
+        }
+        blocks.push_back(std::move(block));
+    }
+    return blocks;
+}
+
+// Greedy Largest-Degree-First run on the complement H of a dense component, with the same order and
+// the same choices as on G, so it assigns exactly the same colors. deg_G(v) = n - 1 - deg_H(v).
+// Color c is free for v iff every vertex already colored c is a neighbor of v in H. Any color that
+// no H-neighbor of v uses has a G-neighbor of v, so only the colors seen among the H-neighbors and
+// one new color are candidates: O(n log n + m-bar) instead of Theta(m) on G.
+std::vector<uint32_t> largestDegreeFirstComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
+    std::vector<uint32_t> order(size), colors(size, 0), classSize(size + 2, 0), hits(size + 2, 0), stamp(size + 2, UINT32_MAX);
+    std::iota(order.begin(), order.end(), 0);
+    auto degreeH = [&](uint32_t v) { return offsets[v + 1] - offsets[v]; };
+    std::sort(order.begin(), order.end(), [&](uint32_t a, uint32_t b) {
+        return degreeH(a) != degreeH(b) ? degreeH(a) < degreeH(b) : a > b;
+    });
+    uint32_t used = 0;
+    for (uint32_t v : order) {
+        uint32_t best = used + 1;
+        for (uint32_t i = offsets[v]; i < offsets[v + 1]; i++) {
+            uint32_t c = colors[targets[i]];
+            if (c == 0) {
+                continue;
             }
-            position += 2 * edgeCount;
+            if (stamp[c] != v) {
+                stamp[c] = v;
+                hits[c] = 0;
+            }
+            if (++hits[c] == classSize[c] && c < best) {
+                best = c;
+            }
+        }
+        colors[v] = best;
+        classSize[best]++;
+        used = std::max(used, best);
+    }
+    return colors;
+}
+
+// Coloring from a maximal matching of the complement H (Karp-Sipser: degree-1 vertices first, then
+// the vertex of smallest remaining degree). Each matched pair is non-adjacent in G and shares a
+// color; unmatched vertices get their own. Uses n - |M| colors, at most n - nu(H)/2.
+std::vector<uint32_t> matchingColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
+    std::vector<uint32_t> mate(size, UINT32_MAX), degree(size), colors(size, 0);
+    for (uint32_t v = 0; v < size; v++) {
+        degree[v] = offsets[v + 1] - offsets[v];
+    }
+    using Entry = std::pair<uint32_t, uint32_t>;
+    std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> queue;
+    for (uint32_t v = 0; v < size; v++) {
+        if (degree[v] > 0) {
+            queue.push({degree[v], v});
         }
     }
+    while (!queue.empty()) {
+        auto [d, v] = queue.top();
+        queue.pop();
+        if (mate[v] != UINT32_MAX || d != degree[v] || d == 0) {
+            continue;
+        }
+        uint32_t partner = UINT32_MAX;
+        for (uint32_t i = offsets[v]; i < offsets[v + 1]; i++) {
+            uint32_t u = targets[i];
+            if (mate[u] == UINT32_MAX && u != v && (partner == UINT32_MAX || degree[u] < degree[partner])) {
+                partner = u;
+            }
+        }
+        if (partner == UINT32_MAX) {
+            continue;
+        }
+        mate[v] = partner;
+        mate[partner] = v;
+        for (uint32_t w : {v, partner}) {
+            for (uint32_t i = offsets[w]; i < offsets[w + 1]; i++) {
+                uint32_t u = targets[i];
+                if (mate[u] == UINT32_MAX && degree[u] > 0) {
+                    degree[u]--;
+                    queue.push({degree[u], u});
+                }
+            }
+        }
+    }
+    uint32_t next = 0;
+    for (uint32_t v = 0; v < size; v++) {
+        if (colors[v] == 0) {
+            colors[v] = ++next;
+            if (mate[v] != UINT32_MAX) {
+                colors[mate[v]] = next;
+            }
+        }
+    }
+    return colors;
+}
+
+// Colors one block with the requested method; returns colors in the block's local order.
+std::vector<uint32_t> colorBlock(const Block &block, const std::string &method) {
+    uint32_t size = block.labels.size();
+    std::vector<uint32_t> offsets, targets;
+    buildCsr(size, block.pairs, offsets, targets);
+    if (block.kind != 2) {
+        return largestDegreeFirstCsr(offsets, targets);
+    }
+    std::vector<uint32_t> greedy = largestDegreeFirstComplement(size, offsets, targets);
+    if (method == "ldf") {
+        return greedy;
+    }
+    std::vector<uint32_t> matched = matchingColoringComplement(size, offsets, targets);
+    if (method == "matching") {
+        return matched;
+    }
+    // best: per component, the coloring with fewer colors.
+    return *std::max_element(matched.begin(), matched.end()) < *std::max_element(greedy.begin(), greedy.end()) ? matched : greedy;
 }
 
 Options parseOptions(int argc, char **argv, std::string &suffix) {
@@ -207,15 +407,20 @@ Options parseOptions(int argc, char **argv, std::string &suffix) {
             options.scatterv = true;
         } else if (flag.rfind("--blocks=", 0) == 0) {
             options.blocks = flag.substr(9);
-            if (options.blocks != "auto" && options.blocks != "bitmap" && options.blocks != "edges") {
-                throw std::invalid_argument("--blocks must be auto, bitmap or edges");
+            if (options.blocks != "auto" && options.blocks != "bitmap" && options.blocks != "edges" && options.blocks != "complement") {
+                throw std::invalid_argument("--blocks must be auto, bitmap, edges or complement");
+            }
+        } else if (flag.rfind("--color=", 0) == 0) {
+            options.color = flag.substr(8);
+            if (options.color != "ldf" && options.color != "matching" && options.color != "best") {
+                throw std::invalid_argument("--color must be ldf, matching or best");
             }
         } else {
             throw std::invalid_argument("Unknown option: " + flag);
         }
     }
-    if (!options.root && (options.scatterv || options.blocks != "auto")) {
-        throw std::invalid_argument("--scatterv and --blocks only apply to --root");
+    if (!options.root && (options.scatterv || options.blocks != "auto" || options.color != "ldf")) {
+        throw std::invalid_argument("--scatterv, --blocks and --color only apply to --root");
     }
     if (options.root) {
         suffix = "r";
@@ -231,7 +436,7 @@ Options parseOptions(int argc, char **argv, std::string &suffix) {
 
 }  // namespace
 
-// Usage: mpirun -np P ./a.out n m nPrime [--root [--blocks=auto|bitmap|edges] [--scatterv]]
+// Usage: mpirun -np P ./a.out n m nPrime [--root [--blocks=auto|bitmap|edges|complement] [--scatterv] [--color=ldf|matching|best]]
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
     int rank, size;
@@ -249,7 +454,9 @@ int main(int argc, char **argv) {
     const char *graphFile = std::getenv("GRAPH_FILE");
     const std::string path = graphFile != nullptr ? std::string(graphFile)
         : "../../data/" + graphFileName(n, m, nPrime, GraphVariant::fromEnv()) + ".edges";
-    const std::string algorithm = "mpi-v2" + suffix + "-ldf";
+    const std::string algorithm = "mpi-v2" + suffix + "-" + options.color;
+    uint64_t blockCounts[3] = {0, 0, 0};  // components sent as bitmap, edges, complement (--root)
+    std::vector<Block> blocks;
 
     // Input (not timed): a slice per rank (root-free) or the whole list on the root (--root).
     EdgeFileHeader header = readEdgeHeader(path);
@@ -419,7 +626,7 @@ int main(int argc, char **argv) {
             }
             std::vector<int> owner = assignOwners(cost, size);
             for (uint32_t c = 0; c < components; c++) {
-                encodeComponent(labels[c], edgesOf[c], options.blocks, buffers[owner[c]]);
+                encodeComponent(labels[c], edgesOf[c], options.blocks, buffers[owner[c]], blockCounts);
             }
             ownBuffer = std::move(buffers[0]);
         }
@@ -472,13 +679,23 @@ int main(int argc, char **argv) {
 
         // Decoding is part of the coloring phase (timed there).
         t = MPI_Wtime();
-        decodeComponents(message, mine, localEdges);
+        blocks = decodeBlocks(message);
     }
 
-    // ---- color: CSR of my components, greedy Largest-Degree-First (t started above) ----
-    std::vector<uint32_t> offsets, targets;
-    buildCsr(mine.size(), localEdges, offsets, targets);
-    std::vector<uint32_t> colors = largestDegreeFirstCsr(offsets, targets);
+    // ---- color (t started above): one CSR for the root-free mode; per component in --root mode,
+    // on G for bitmap and edge blocks and on the complement for complement blocks ----
+    std::vector<uint32_t> colors;
+    if (!options.root) {
+        std::vector<uint32_t> offsets, targets;
+        buildCsr(mine.size(), localEdges, offsets, targets);
+        colors = largestDegreeFirstCsr(offsets, targets);
+    } else {
+        for (const Block &block : blocks) {
+            std::vector<uint32_t> blockColors = colorBlock(block, options.color);
+            mine.insert(mine.end(), block.labels.begin(), block.labels.end());
+            colors.insert(colors.end(), blockColors.begin(), blockColors.end());
+        }
+    }
     uint32_t localColors = colors.empty() ? 0 : *std::max_element(colors.begin(), colors.end());
     phases.coloring = MPI_Wtime() - t;
     MPI_Barrier(MPI_COMM_WORLD);
@@ -531,6 +748,11 @@ int main(int argc, char **argv) {
         std::cout << "Number of colors: " << totalColors << std::endl;
         printCsvLine(algorithm, n, m, nPrime, size, 1, stop - start, reported, totalColors);
         printVolumeLine(algorithm, n, m, nPrime, size, 1, volume);
+        if (options.root) {
+            // Encoding chosen per component: BLOCKS,algorithm,n,m,k,p,bitmap,edges,complement
+            std::cout << "BLOCKS," << algorithm << "," << n << "," << m << "," << nPrime << "," << size << ","
+                      << blockCounts[0] << "," << blockCounts[1] << "," << blockCounts[2] << std::endl;
+        }
     }
 
     MPI_Finalize();

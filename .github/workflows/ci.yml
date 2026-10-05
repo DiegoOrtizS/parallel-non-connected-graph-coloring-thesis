@@ -111,12 +111,29 @@ jobs:
           GRAPH_VARIANT="permute,seed=42" measure G1-permuted 1000 30000 16 "" "4 16"
           GRAPH_VARIANT="permute,seed=42" measure G2-permuted 10000 1500000 32 "" "4 16"
           { echo "graph,algorithm,n,m,k,p,h,bytes_dsu,bytes_pack,bytes_send,bytes_gather,bytes_total"; grep '^VOLUME,' "$LOG" | cut -d, -f2-; } | tee scripts/results/volume.csv
+      - name: Block encodings and complement coloring
+        run: |
+          LOG=$PWD/scripts/results/encodings.log
+          : > "$LOG"
+          encodings() {  # encodings n m k
+            for blocks in auto bitmap edges complement; do
+              (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np 4 ./a.out "$1" "$2" "$3" --root --blocks=$blocks) | grep -E '^(CSV|VOLUME|BLOCKS),' >> "$LOG"
+            done
+            for color in matching best; do
+              (cd src/algorithms/mpi_v2 && mpirun --oversubscribe -np 4 ./a.out "$1" "$2" "$3" --root --blocks=complement --color=$color) | grep -E '^(CSV|BLOCKS),' >> "$LOG"
+            done
+          }
+          encodings 1000 30000 16
+          encodings 10000 1500000 32
+          cat "$LOG"
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: communication-volume
-          path: scripts/results/volume.*
+          path: |
+            scripts/results/volume.*
+            scripts/results/encodings.log
           if-no-files-found: ignore
 
   correctness-at-scale:
