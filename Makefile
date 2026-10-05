@@ -5,7 +5,7 @@
 #   make results LOGS="scripts/results/strong-*.log" N=10000 M=1500000 K=32 OUT=../Tesis_Coloreo_Grafos/data/graph2.csv
 #                         aggregate campaign logs into the CSV format read by the thesis
 
-PROGRAMS = src/generator src/algorithms/sequential src/algorithms/omp src/algorithms/mpi src/algorithms/hybrid src/benchmarks/pingpong
+PROGRAMS = src/generator src/algorithms/sequential src/algorithms/omp src/algorithms/mpi src/algorithms/hybrid src/algorithms/mpi_v2 src/benchmarks/pingpong
 PYTHON ?= python3
 
 .PHONY: build smoke quality results clean

@@ -17,3 +17,22 @@
 | colors ($\hat{c}$) | colors used by a heuristic; an upper bound of the chromatic number $\chi$ |
 | v1 / v2 | thesis version as analyzed / redesigned version from `docs/EXTENSIONS.md` |
 | provisional data | values read off the old plots; must never be presented as measurements |
+
+## Phases in v2 (`algorithms/mpi_v2`)
+
+The CSV keeps the v1 columns; in v2 they mean:
+
+| Column | v2 work |
+|--------|---------|
+| `t_dsu` | local DSU on the edge slice + sparse binomial-tree merge of (v, root) pairs + final labels at the root |
+| `t_pack` | broadcast of component ids, `MPI_Allreduce` of edges per component, replicated LPT, bucketing of edges |
+| `t_send` | `MPI_Alltoallv` of edges to component owners |
+| `t_color` | CSR build + greedy LDF |
+| `t_gather` | max-color reduction + `MPI_Gatherv` of vertices and colors |
+
+Reading the edge slice and verifying the coloring are not timed.
+
+| Term | Meaning |
+|------|---------|
+| `.edges` file | binary edge list: int64 header (n, m, k) + m sorted uint32 pairs (u < v) |
+| VOLUME line | bytes delivered to other processes per phase, summed over ranks; deterministic, valid thesis data |
