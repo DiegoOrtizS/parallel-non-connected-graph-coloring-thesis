@@ -34,7 +34,9 @@
 //   color  complement blocks are colored on the complement, never expanded:
 //          --color=ldf (default) same colors as LDF on G; --color=matching coloring from a maximal
 //          matching of the complement; --color=cliques disjoint cliques of the complement, larger
-//          first, then a matching of the rest; --color=best the fewest colors of the three per component
+//          first, improved by local search, then a matching of the rest; --color=best the fewest
+//          colors of the three per component (never more than LDF). Bitmap blocks of density at
+//          least 1/2 are turned into their complement at the owner for matching, cliques and best
 //
 // Both modes then build a CSR of each process's components, color it with greedy Largest-Degree-First
 // in the same vertex order as the v1 program (so every version assigns the same colors), gather the
@@ -430,7 +432,8 @@ void listCliques(std::vector<uint32_t> &clique, const std::vector<uint32_t> &can
 // vertices lie in the fewest cliques. Then a Karp-Sipser matching of the vertices left. Uses
 // n - sum(|Q| - 1) colors; with only triangles, n - 2T - |M|. The cliques are listed by extending
 // each vertex with its larger neighbors, short lists because H is sparse in dense components; the
-// listing stops at maxCliques, and the packing then uses the cliques listed so far.
+// listing stops at maxCliques, and the packing then uses the cliques listed so far. A local search
+// then improves the packing (below).
 std::vector<uint32_t> cliqueColoringComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets) {
     const size_t maxCliques = 500000;
     std::vector<std::vector<uint32_t>> higher(size), cliques;
@@ -468,14 +471,107 @@ std::vector<uint32_t> cliqueColoringComplement(uint32_t size, const std::vector<
         return conflicts[a] != conflicts[b] ? conflicts[a] < conflicts[b] : cliques[a] < cliques[b];
     });
 
+    // Greedy packing: owner[v] is the chosen clique that covers v, or NONE.
+    const uint32_t NONE = UINT32_MAX;
+    std::vector<uint32_t> owner(size, NONE);
+    for (size_t j : order) {
+        if (std::all_of(cliques[j].begin(), cliques[j].end(), [&](uint32_t v) { return owner[v] == NONE; })) {
+            for (uint32_t v : cliques[j]) {
+                owner[v] = j;
+            }
+        }
+    }
+    auto countColors = [&]() {
+        std::vector<char> taken(size, 0);
+        uint64_t saved = 0;
+        for (uint32_t v = 0; v < size; v++) {
+            taken[v] = owner[v] != NONE;
+            if (taken[v] && cliques[owner[v]][0] == v) {
+                saved += cliques[owner[v]].size() - 1;
+            }
+        }
+        return size - saved - karpSipserMatching(size, offsets, targets, taken).size();
+    };
+
+    // Local search: insert a clique that is not chosen, evict the chosen cliques it overlaps, and
+    // refill each freed vertex with its first clique, in greedy order, whose vertices are all free.
+    // A move is kept only if the packing weight sum(|Q| - 2) rises (cheap filter) and the color
+    // count, with a Karp-Sipser matching of the free vertices, falls. The work is capped by a count
+    // of scanned entries, not by time, so the result is deterministic.
+    std::vector<std::vector<uint32_t>> of(size);
+    for (size_t r = 0; r < order.size(); r++) {
+        for (uint32_t v : cliques[order[r]]) {
+            of[v].push_back(order[r]);  // in greedy order
+        }
+    }
+    const uint64_t budget = 200000000;
+    uint64_t work = 0;
+    uint64_t current = countColors();
+    bool improved = true;
+    for (int round = 0; round < 50 && improved && work < budget; round++) {
+        improved = false;
+        for (size_t r = 0; r < order.size() && work < budget; r++) {
+            uint32_t j = order[r];
+            const std::vector<uint32_t> &inserted = cliques[j];
+            if (owner[inserted[0]] == j) {
+                continue;
+            }
+            std::vector<uint32_t> evicted;
+            int64_t delta = static_cast<int64_t>(inserted.size()) - 2;
+            for (uint32_t v : inserted) {
+                if (owner[v] != NONE && std::find(evicted.begin(), evicted.end(), owner[v]) == evicted.end()) {
+                    evicted.push_back(owner[v]);
+                    delta -= static_cast<int64_t>(cliques[owner[v]].size()) - 2;
+                }
+            }
+            std::vector<std::pair<uint32_t, uint32_t>> undo;
+            for (uint32_t e : evicted) {
+                for (uint32_t v : cliques[e]) {
+                    undo.push_back({v, owner[v]});
+                    owner[v] = NONE;
+                }
+            }
+            for (uint32_t v : inserted) {
+                undo.push_back({v, owner[v]});
+                owner[v] = j;
+            }
+            for (uint32_t e : evicted) {
+                for (uint32_t v : cliques[e]) {
+                    for (size_t k = 0; k < of[v].size() && owner[v] == NONE; k++) {
+                        const std::vector<uint32_t> &refill = cliques[of[v][k]];
+                        work += refill.size();
+                        if (std::all_of(refill.begin(), refill.end(), [&](uint32_t u) { return owner[u] == NONE; })) {
+                            for (uint32_t u : refill) {
+                                undo.push_back({u, owner[u]});
+                                owner[u] = of[v][k];
+                            }
+                            delta += static_cast<int64_t>(refill.size()) - 2;
+                        }
+                    }
+                }
+            }
+            work += inserted.size();
+            if (delta > 0) {
+                work += size + offsets[size];
+                uint64_t colors = countColors();
+                if (colors < current) {
+                    current = colors;
+                    improved = true;
+                    continue;
+                }
+            }
+            for (auto it = undo.rbegin(); it != undo.rend(); ++it) {
+                owner[it->first] = it->second;
+            }
+        }
+    }
+
     std::vector<char> taken(size, 0);
     std::vector<std::vector<uint32_t>> classes;
-    for (size_t j : order) {
-        if (std::none_of(cliques[j].begin(), cliques[j].end(), [&](uint32_t v) { return taken[v]; })) {
-            for (uint32_t v : cliques[j]) {
-                taken[v] = 1;
-            }
-            classes.push_back(cliques[j]);
+    for (uint32_t v = 0; v < size; v++) {
+        taken[v] = owner[v] != NONE;
+        if (taken[v] && cliques[owner[v]][0] == v) {
+            classes.push_back(cliques[owner[v]]);
         }
     }
     for (auto &pair : karpSipserMatching(size, offsets, targets, taken)) {
@@ -484,18 +580,58 @@ std::vector<uint32_t> cliqueColoringComplement(uint32_t size, const std::vector<
     return colorsFromClasses(size, classes);
 }
 
+// CSR of the complement of a graph given by its CSR: for each v, mark its neighbors and take every
+// other unmarked vertex. Theta(n^2) time, like decoding a bitmap, and O(n) extra memory.
+void complementCsr(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets,
+                   std::vector<uint32_t> &complementOffsets, std::vector<uint32_t> &complementTargets) {
+    std::vector<uint32_t> mark(size, UINT32_MAX);
+    complementOffsets.assign(size + 1, 0);
+    complementTargets.clear();
+    for (uint32_t v = 0; v < size; v++) {
+        for (uint32_t i = offsets[v]; i < offsets[v + 1]; i++) {
+            mark[targets[i]] = v;
+        }
+        for (uint32_t u = 0; u < size; u++) {
+            if (u != v && mark[u] != v) {
+                complementTargets.push_back(u);
+            }
+        }
+        complementOffsets[v + 1] = complementTargets.size();
+    }
+}
+
+std::vector<uint32_t> colorOnComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets,
+                                        const std::string &method, const std::vector<uint32_t> &greedy);
+
 // Colors one block with the requested method; returns colors in the block's local order.
 std::vector<uint32_t> colorBlock(const Block &block, const std::string &method) {
     uint32_t size = block.labels.size();
     std::vector<uint32_t> offsets, targets;
     buildCsr(size, block.pairs, offsets, targets);
     if (block.kind != 2) {
-        return largestDegreeFirstCsr(offsets, targets);
+        std::vector<uint32_t> greedy = largestDegreeFirstCsr(offsets, targets);
+        // The complement methods also apply to bitmap blocks of density at least 1/2, where the
+        // complement is the sparser graph: 2m / (n(n - 1)) >= 1/2, with targets.size() = 2m. Edge
+        // blocks (density below 1/16) and sparser bitmap blocks keep LDF on G.
+        bool dense = size > 1 && 2 * static_cast<uint64_t>(targets.size()) >= static_cast<uint64_t>(size) * (size - 1);
+        if (method == "ldf" || block.kind != 0 || !dense) {
+            return greedy;
+        }
+        std::vector<uint32_t> complementOffsets, complementTargets;
+        complementCsr(size, offsets, targets, complementOffsets, complementTargets);
+        return colorOnComplement(size, complementOffsets, complementTargets, method, greedy);
     }
     std::vector<uint32_t> greedy = largestDegreeFirstComplement(size, offsets, targets);
     if (method == "ldf") {
         return greedy;
     }
+    return colorOnComplement(size, offsets, targets, method, greedy);
+}
+
+// Matching, clique or best coloring of a component from the CSR of its complement H; `greedy` is
+// its LDF coloring, which is the same on G and on H.
+std::vector<uint32_t> colorOnComplement(uint32_t size, const std::vector<uint32_t> &offsets, const std::vector<uint32_t> &targets,
+                                        const std::string &method, const std::vector<uint32_t> &greedy) {
     std::vector<uint32_t> matched = matchingColoringComplement(size, offsets, targets);
     if (method == "matching") {
         return matched;
